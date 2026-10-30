@@ -1,0 +1,35 @@
+[gd_scene format=3 uid="uid://34jr5yp4n70r"]
+
+[ext_resource type="PackedScene" uid="uid://u17gnr26od5c" path="res://characters/proto_character/rig.tscn" id="1"]
+[ext_resource type="Script" uid="uid://7xnjywyq6ln5" path="res://debug/ik_debug.gd" id="2"]
+
+[sub_resource type="Environment" id="env"]
+background_mode = 1
+background_color = Color(0.12, 0.14, 0.18, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.8, 0.85, 1, 1)
+ambient_light_energy = 0.8
+
+[sub_resource type="BoxMesh" id="floor"]
+size = Vector3(24, 0.1, 24)
+
+[node name="IKDebug" type="Node3D" unique_id=964969052]
+script = ExtResource("2")
+
+[node name="Rig" parent="." unique_id=1450299345 instance=ExtResource("1")]
+transform = Transform3D(-0.99954396, 0, -0.030197501, 0, 1, 0, 0.030197501, 0, -0.99954396, 0, 0, 0)
+
+[node name="Light" type="DirectionalLight3D" parent="." unique_id=156755498]
+transform = Transform3D(0.8660254, 0.38302222, -0.32139382, 0, 0.64278764, 0.76604444, 0.5, -0.66341394, 0.5566704, 0, 0, 0)
+shadow_enabled = true
+
+[node name="Environment" type="WorldEnvironment" parent="." unique_id=862845770]
+environment = SubResource("env")
+
+[node name="Floor" type="MeshInstance3D" parent="." unique_id=620178441]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+mesh = SubResource("floor")
+
+[node name="Camera" type="Camera3D" parent="." unique_id=1006566680]
+current = true
+fov = 45.0

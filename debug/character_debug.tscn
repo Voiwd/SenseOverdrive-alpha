@@ -1,0 +1,38 @@
+[gd_scene format=3 uid="uid://draot66i40xlo"]
+
+[ext_resource type="PackedScene" uid="uid://daiwmw2r7yoho" path="res://characters/proto_character/character.tscn" id="1"]
+
+[sub_resource type="BoxMesh" id="FloorMesh"]
+size = Vector3(20, 0.2, 20)
+
+[sub_resource type="BoxShape3D" id="FloorShape"]
+size = Vector3(20, 0.2, 20)
+
+[node name="CharacterDebug" type="Node3D" unique_id=1553392826]
+
+[node name="Floor" type="StaticBody3D" parent="." unique_id=364419855]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor" unique_id=1756014090]
+mesh = SubResource("FloorMesh")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor" unique_id=1130771249]
+shape = SubResource("FloorShape")
+
+[node name="Character" parent="." unique_id=268992906 instance=ExtResource("1")]
+acceleration = 17.9
+deceleration = 16.7
+turn_speed = 17.8
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1235920354]
+transform = Transform3D(0.8660254, 0.38302222, -0.32139382, 0, 0.64278764, 0.76604444, 0.5, -0.66341394, 0.5566704, 0, 0, 0)
+shadow_enabled = true
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1458595746]
+
+[node name="Label" type="Label" parent="CanvasLayer" unique_id=37454542]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 900.0
+offset_bottom = 50.0
+text = "WASD / setas: mover  |  Shift: sprint  |  Mouse: olhar  |  Esc: liberar  |  Clique: capturar"
