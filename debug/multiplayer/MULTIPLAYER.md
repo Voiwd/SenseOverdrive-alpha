@@ -2,7 +2,7 @@
 
 ## No mesmo PC (mais fácil)
 
-1. Na Godot, abra `res://debug/multiplayer_debug.tscn` pelo painel **FileSystem**.
+1. Na Godot, abra `res://debug/multiplayer/multiplayer_debug.tscn` pelo painel **FileSystem**.
 2. Aperte **F6** (executar a cena atual). **F5** continua abrindo o jogo normal.
 3. Clique em **Testar 2 janelas**. A primeira cria a sala e a segunda abre e conecta automaticamente.
 4. Confira **Jogadores: 2/4** nas duas janelas. Cada janela controla seu próprio personagem.
@@ -27,7 +27,7 @@ O painel pode mostrar mais de um IP por causa de VPNs e adaptadores virtuais. Us
 
 ## O que conferir rapidamente
 
-- **Imagem local:** F8 alterna o filtro apenas na janela ativa. Ajuste os parâmetros no Inspector remoto em `MultiplayerDebug/WorldPostProcess`. A interface fica na camada 10, acima do filtro. Teste visual isolado, controles e medições: [VISUAL.md](VISUAL.md).
+- **Imagem local:** F8 alterna o filtro apenas na janela ativa. Ajuste os parâmetros no Inspector remoto em `MultiplayerDebug/WorldPostProcess`. A interface fica na camada 10, acima do filtro. Teste visual isolado, controles e medições: [VISUAL.md](../visual/VISUAL.md).
 
 - **Movimento e direção:** ande e gire a câmera em uma janela; veja o outro personagem se mover e virar na outra.
 - **Entrada tardia:** mova o host antes de conectar outro jogador; o cliente deve receber sua posição atual.
@@ -51,8 +51,8 @@ Os parâmetros `default_port` e `connection_timeout` ficam no Inspector da raiz 
 Para executar por terminal, os argumentos opcionais são `--mp-host`, `--mp-join=127.0.0.1` e `--mp-port=7000`, depois do separador `--` da Godot. Exemplo:
 
 ```text
-Godot.exe --path "CAMINHO_DO_PROJETO" res://debug/multiplayer_debug.tscn -- --mp-host --mp-port=7000
-Godot.exe --path "CAMINHO_DO_PROJETO" res://debug/multiplayer_debug.tscn -- --mp-join=127.0.0.1 --mp-port=7000
+Godot.exe --path "CAMINHO_DO_PROJETO" res://debug/multiplayer/multiplayer_debug.tscn -- --mp-host --mp-port=7000
+Godot.exe --path "CAMINHO_DO_PROJETO" res://debug/multiplayer/multiplayer_debug.tscn -- --mp-join=127.0.0.1 --mp-port=7000
 ```
 
 Referências da Godot: [replicação de cenas](https://godotengine.org/article/multiplayer-in-godot-4-0-scene-replication/) e [MultiplayerSpawner](https://docs.godotengine.org/en/stable/classes/class_multiplayerspawner.html).

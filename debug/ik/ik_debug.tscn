@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://34jr5yp4n70r"]
 
 [ext_resource type="PackedScene" uid="uid://u17gnr26od5c" path="res://characters/proto_character/rig.tscn" id="1"]
-[ext_resource type="Script" uid="uid://7xnjywyq6ln5" path="res://debug/ik_debug.gd" id="2"]
+[ext_resource type="Script" uid="uid://7xnjywyq6ln5" path="res://debug/ik/ik_debug.gd" id="2"]
 
 [sub_resource type="Environment" id="env"]
 background_mode = 1

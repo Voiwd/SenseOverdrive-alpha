@@ -1,5 +1,5 @@
 extends SceneTree
-## GPU regression checks. Run with Godot --path . --script res://debug/verify_post_process.gd
+## GPU regression checks. Run with Godot --path . --script res://debug/visual/verify_post_process.gd
 ## Requires a real renderer (do not use --headless).
 
 const POST := preload("res://effects/world_post_process.tscn")

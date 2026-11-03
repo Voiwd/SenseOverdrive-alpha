@@ -1,7 +1,7 @@
 extends Node3D
 ## F6: direct A/B inspection, independent material/shadow comparisons and repeatable capture.
 
-const BEFORE_SHADER := preload("res://debug/reference/blocks_before_sen5.gdshader")
+const BEFORE_SHADER := preload("res://debug/visual/reference/blocks_before_sen5.gdshader")
 @onready var room: Node3D = $Room
 @onready var post: CanvasLayer = $Room/WorldPostProcess
 @onready var light: DirectionalLight3D = $Room/DirectionalLight3D
