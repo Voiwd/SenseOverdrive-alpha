@@ -6,8 +6,9 @@ extends Node
 
 signal visibility_changed(open: bool)
 
-## F9 toggles tools and restores the mouse mode used before opening them.
-@export var toggle_key: Key = KEY_F9
+## Shortcut for opening/closing tools. Ctrl+Alt+D avoids the editor's F9 pause shortcut.
+## Edit its key/modifiers in the Inspector; the header follows changes at runtime.
+@export var toggle_shortcut: Shortcut = _default_shortcut()
 ## Whether the tools start open. Changes during execution use set_tools_visible().
 @export var start_open := true
 
@@ -28,6 +29,16 @@ var _layout_reset := true
 var _frame_times: Array = []
 var _sample_time := 0.0
 var preset_path := PRESET_PATH
+
+
+static func _default_shortcut() -> Shortcut:
+	var key := InputEventKey.new()
+	key.keycode = KEY_D
+	key.ctrl_pressed = true
+	key.alt_pressed = true
+	var shortcut := Shortcut.new()
+	shortcut.events = [key]
+	return shortcut
 
 
 func _ready() -> void:
@@ -99,7 +110,8 @@ func _exit_tree() -> void:
 func _input(event: InputEvent) -> void:
 	if gui == null or suspended:
 		return
-	if event is InputEventKey and event.pressed and not event.echo and event.keycode == toggle_key:
+	if event is InputEventKey and event.pressed and not event.echo \
+			and toggle_shortcut != null and toggle_shortcut.matches_event(event):
 		set_tools_visible(not tools_visible)
 		get_viewport().set_input_as_handled()
 
@@ -131,7 +143,7 @@ func _process(delta: float) -> void:
 func _draw_header() -> void:
 	gui.SetNextWindowPos(Vector2(12, 12))
 	gui.Begin("DevAssistance##header", [], HEADER_FLAGS)
-	gui.Text("DevAssistance / F9")
+	gui.Text("DevAssistance / " + (toggle_shortcut.get_as_text() if toggle_shortcut != null else "sem atalho"))
 	var index := 0
 	for id: String in contexts:
 		var context: Dictionary = contexts[id]

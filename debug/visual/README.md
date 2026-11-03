@@ -2,7 +2,7 @@
 
 ## Teste rápido
 
-Abra `res://debug/visual/visual_debug.tscn` e pressione **F6**. O DevAssistance oferece menus móveis e retráteis: paleta para Visual e frasco para Experimento. Use **F9** para abrir/ocultar as ferramentas e role os menus para acessar os controles. [Guia de uso, presets e integração](../../addons/dev_assistance/README.md).
+Abra `res://debug/visual/visual_debug.tscn` e pressione **F6**. O DevAssistance oferece menus móveis e retráteis: paleta para Visual e frasco para Experimento. Use **Ctrl+Alt+D** para abrir/ocultar as ferramentas e role os menus para acessar os controles. [Guia de uso, presets e integração](../../addons/dev_assistance/README.md).
 
 | Controle | Ação |
 | --- | --- |

@@ -128,7 +128,7 @@ func _build_ui() -> void:
 	], [
 		_action("Reiniciar experimento", "Restaura parâmetros, comparações e câmera inicial.", _reset_experiment),
 		_action("Câmera inicial (Home)", "Volta à vista de órbita e desativa o controle do personagem.", _reset_camera),
-		_action("Controlar personagem", "Fecha as ferramentas e captura o mouse. F9 reabre e suspende o personagem.", _player_camera),
+		_action("Controlar personagem", "Fecha as ferramentas e captura o mouse. Ctrl+Alt+D reabre e suspende o personagem.", _player_camera),
 		_action("Janela 1280 x 720", "Resolução de teste.", func(): get_window().size = Vector2i(1280, 720)),
 		_action("Janela 1920 x 1080", "Resolução de teste.", func(): get_window().size = Vector2i(1920, 1080)),
 		_action("Janela 800 x 600", "Verificar acesso aos controles em uma janela menor.", func(): get_window().size = Vector2i(800, 600)),

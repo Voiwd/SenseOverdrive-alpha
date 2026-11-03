@@ -1,5 +1,5 @@
 extends SceneTree
-## Run with --headless --path . --script res://debug/dev_assistance/verify_dev_assistance.gd
+## Run with --headless --path . --script res://debug/visual/verify_dev_assistance.gd
 ## Omit --headless and pass -- --da-capture to save runtime screenshots in user://devassistance/.
 
 const Handler := preload("res://addons/dev_assistance/context_handler.gd")
@@ -61,12 +61,30 @@ func _run() -> void:
 	_check(scene.player.process_mode == Node.PROCESS_MODE_INHERIT, "Closing tools resumes player")
 	scene._reset_camera()
 	handler.set_tools_visible(true)
+	var editor_pause := InputEventKey.new()
+	editor_pause.keycode = KEY_F9
+	editor_pause.pressed = true
+	Input.parse_input_event(editor_pause)
+	await process_frame
+	_check(handler.tools_visible, "F9 is not the tool shortcut")
+	editor_pause.pressed = false
+	Input.parse_input_event(editor_pause)
+	var unmodified := InputEventKey.new()
+	unmodified.keycode = KEY_D
+	unmodified.pressed = true
+	Input.parse_input_event(unmodified)
+	await process_frame
+	_check(handler.tools_visible, "D without modifiers does not toggle tools")
+	unmodified.pressed = false
+	Input.parse_input_event(unmodified)
 	var toggle := InputEventKey.new()
-	toggle.keycode = KEY_F9
+	toggle.keycode = KEY_D
+	toggle.ctrl_pressed = true
+	toggle.alt_pressed = true
 	toggle.pressed = true
 	Input.parse_input_event(toggle)
 	await process_frame
-	_check(not handler.tools_visible, "F9 input closes tools")
+	_check(not handler.tools_visible, "Ctrl+Alt+D input closes tools")
 	toggle.pressed = false
 	Input.parse_input_event(toggle)
 	handler.set_tools_visible(true)
