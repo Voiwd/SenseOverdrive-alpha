@@ -1,0 +1,31 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://characters/proto_character/character.tscn" id="1"]
+[ext_resource type="Script" path="res://debug/multiplayer_player.gd" id="2"]
+
+[sub_resource type="SceneReplicationConfig" id="Replication"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:velocity")
+properties/1/spawn = true
+properties/1/replication_mode = 1
+properties/2/path = NodePath("CameraYaw:rotation")
+properties/2/spawn = true
+properties/2/replication_mode = 1
+
+[node name="MultiplayerPlayer" instance=ExtResource("1")]
+script = ExtResource("2")
+
+[node name="CameraYaw" parent="." index="2"]
+position = Vector3(0, 2.4, 0)
+
+[node name="SpringArm3D" parent="CameraYaw/CameraPitch" index="0"]
+spring_length = 7.0
+
+[node name="Camera3D" parent="CameraYaw/CameraPitch/SpringArm3D" index="0"]
+current = false
+
+[node name="Synchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_interval = 0.033333335
+replication_config = SubResource("Replication")
