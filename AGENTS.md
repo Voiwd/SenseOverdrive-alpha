@@ -16,6 +16,7 @@ When helping with this project:
 - Choose the lightest useful approach for the feature, such as an isolated test scene, debug controls, adjustable parameters, or a direct way to trigger its states. Make the controls and how to access them clear when delivering the work.
 - Keep debugging tools proportionate to the task and the solo developer's workload; reuse existing tools when they fit instead of building unnecessary infrastructure.
 - Export feature parameters that the developer may need to tune, and make their changes effective at runtime through the Inspector or the lightest suitable debug controls. The developer handles the final tuning; do not require source edits for routine adjustments.
+- Document each exported variable and control when writing code, explaining what it changes and, where useful, its units, range, and the effect of increasing or decreasing it. For GDScript Inspector properties, use a `##` documentation comment immediately before the declaration so the description appears in the Inspector tooltip. Keep descriptions concise and useful for tuning.
 
 # Linear tasks, version control, and integration
 
