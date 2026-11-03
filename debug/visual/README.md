@@ -2,7 +2,7 @@
 
 ## Teste rápido
 
-Abra `res://debug/visual/visual_debug.tscn` e pressione **F6**. O painel à direita ajusta cada efeito durante a execução. Role o painel se a janela for pequena.
+Abra `res://debug/visual/visual_debug.tscn` e pressione **F6**. O DevAssistance oferece menus móveis e retráteis: paleta para Visual e frasco para Experimento. Use **Ctrl+Alt+D** para abrir/ocultar as ferramentas e role os menus para acessar os controles. [Guia de uso, presets e integração](../../addons/dev_assistance/README.md).
 
 | Controle | Ação |
 | --- | --- |
@@ -12,10 +12,10 @@ Abra `res://debug/visual/visual_debug.tscn` e pressione **F6**. O painel à dire
 | F4 | Liga/desliga a órbita para examinar estabilidade em movimento |
 | Home | Volta à câmera e ao ângulo inicial; sai do personagem |
 | Câmera do personagem | Usa o controle existente: mouse, WASD/setas, Shift; Esc libera o mouse |
-| Botões de resolução | 1280×720, 1920×1080 e 1100×800; também é possível redimensionar livremente |
+| Botões de resolução | 1280×720, 1920×1080 e 800×600; também é possível redimensionar livremente |
 | Medir e capturar A/B | Oculta o painel, mede quatro configurações nas três resoluções e salva CSV/PNG em `user://sen5/` |
 
-Na árvore **Remote**, `Room/WorldPostProcess` expõe todos os controles. `Room/DirectionalLight3D` permite ajustar alcance, splits, bias e blur pelas propriedades nativas da Godot. O material do chão pode ser ajustado em `Room/FloorBlock/MeshInstance3D > Material Override > Shader Parameters`. Os controles do painel são uma alternativa ao Inspector remoto; não persistem mudanças nem acompanham edições simultâneas feitas pelo Inspector.
+Na árvore **Remote**, `Room/WorldPostProcess` expõe todos os controles. `Room/DirectionalLight3D` permite ajustar alcance, splits, bias e blur pelas propriedades nativas da Godot. O material do chão pode ser ajustado em `Room/FloorBlock/MeshInstance3D > Material Override > Shader Parameters`. Os controles do DevAssistance acompanham alterações do Inspector remoto; presets persistem somente os parâmetros registrados em `user://devassistance/presets.cfg`.
 
 Em `res://debug/multiplayer/multiplayer_debug.tscn`, use **F6 → Testar 2 janelas**. **F8** alterna o filtro apenas na janela ativa. Ajustes individuais: `MultiplayerDebug/WorldPostProcess` no Inspector remoto. Conecte/desconecte para alternar entre visão geral e câmera local. A interface permanece acima do filtro e o overlay ignora o mouse.
 

@@ -8,6 +8,10 @@
 
 config_version=5
 
+[addons]
+
+imgui/config="res://addons/imgui-godot/data/DevAssistanceConfig.tres"
+
 [application]
 
 config/name="Sense Overdrive"
@@ -18,6 +22,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 PhantomCameraManager="*uid://duq6jhf6unyis"
+ImGuiRoot="*res://addons/imgui-godot/data/ImGuiRoot.tscn"
 
 [display]
 
@@ -26,7 +31,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/phantom_camera/plugin.cfg")
+enabled=PackedStringArray("res://addons/phantom_camera/plugin.cfg", "res://addons/imgui-godot/plugin.cfg", "res://addons/dev_assistance/plugin.cfg")
 
 [input]
 
