@@ -12,6 +12,13 @@ signal visibility_changed(open: bool)
 ## Whether the tools start open. Changes during execution use set_tools_visible().
 @export var start_open := true
 
+## Arraste: resposta por segundo. Maior acompanha o cursor mais rápido; 0 remove a suavização.
+@export_range(0.0, 40.0, 0.5) var drag_response := 18.0
+## Desfoque do fundo em níveis de mipmap (0–5). Zero mantém o fundo nítido.
+@export_range(0.0, 5.0, 0.1) var background_blur := 2.5
+## Opacidade dos painéis (0–1). Maior melhora o contraste e oculta mais a cena.
+@export_range(0.3, 1.0, 0.01) var panel_opacity := 0.86
+
 const PRESET_PATH := "user://devassistance/presets.cfg"
 # Dear ImGui flags, kept local so this script also parses without the extension in release.
 const HEADER_FLAGS := 1 | 2 | 4 | 64 | 256 # NoTitleBar, NoResize, NoMove, AutoResize, NoSavedSettings.
@@ -29,6 +36,14 @@ var _layout_reset := true
 var _frame_times: Array = []
 var _sample_time := 0.0
 var preset_path := PRESET_PATH
+var _glass: CanvasLayer
+var _glass_material: ShaderMaterial
+var _glass_rects: Array[Vector4] = []
+var _drag_id := ""
+var _drag_offset := Vector2.ZERO
+var _delta := 0.0
+var _opening := true
+var _watch_size := Vector2.ZERO
 
 
 static func _default_shortcut() -> Shortcut:
@@ -52,8 +67,40 @@ func _ready() -> void:
 		set_process_input(false)
 		return
 	gui = Engine.get_singleton("ImGuiAPI")
-	gui.GetStyle().WindowRounding = 6.0
-	gui.GetStyle().FrameRounding = 3.0
+	var style: Object = gui.GetStyle()
+	style.WindowRounding = 10.0
+	style.FrameRounding = 5.0
+	style.GrabRounding = 5.0
+	style.TabRounding = 5.0
+	style.WindowPadding = Vector2(18, 16)
+	style.FramePadding = Vector2(10, 7)
+	style.ItemSpacing = Vector2(10, 10)
+	style.ItemInnerSpacing = Vector2(8, 6)
+	style.ScrollbarSize = 14.0
+	# Dear ImGui color indices: text, muted text, panel, border and interaction states.
+	var colors: PackedColorArray = style._GetColors()
+	for entry in [[0, Color("e7edf3")], [1, Color("9caebd")],
+		[2, Color("121b25")], [5, Color("344451")],
+		[7, Color("263847")], [8, Color("365367")], [9, Color("466c82")],
+		[10, Color("182633")], [11, Color("233849")], [12, Color("182633")],
+		[18, Color("8bd7cf")], [19, Color("70b6b2")], [20, Color("a2eee1")],
+		[21, Color("263e4d")], [22, Color("3a5d6d")], [23, Color("507b87")],
+		[24, Color("294451")], [25, Color("3a5d6d")], [26, Color("507b87")]]:
+		colors[entry[0]] = entry[1]
+	style._SetColors(colors)
+	_glass = CanvasLayer.new()
+	_glass.layer = 127 # Immediately below the configured ImGui layer (128).
+	add_child(_glass)
+	var copy := BackBufferCopy.new()
+	copy.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
+	_glass.add_child(copy)
+	var glass := ColorRect.new()
+	glass.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glass.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_glass_material = ShaderMaterial.new()
+	_glass_material.shader = preload("res://addons/dev_assistance/glass.gdshader")
+	glass.material = _glass_material
+	_glass.add_child(glass)
 	_presets.load(preset_path)
 	set_tools_visible(start_open)
 
@@ -76,7 +123,7 @@ func register_context(id: String, title: String, icon: Texture2D, target: Node,
 		field["pinned"] = false
 		fields.append(field)
 	contexts[id] = {"title": title, "icon": icon, "target": weakref(target),
-		"fields": fields, "actions": actions, "open": [false], "preset_name": ["Meu preset"]}
+		"fields": fields, "actions": actions, "position": Vector2.ZERO, "destination": Vector2.ZERO, "fade": 0.0, "open": [false], "preset_name": ["Meu preset"]}
 	# Remove both the menu and its watches before its target leaves the scene.
 	target.tree_exiting.connect(_target_exiting.bind(id, target.get_instance_id()), CONNECT_ONE_SHOT)
 
@@ -95,10 +142,13 @@ func set_tools_visible(value: bool) -> void:
 		return
 	tools_visible = value
 	if value:
+		_opening = true
 		_old_mouse = Input.mouse_mode
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	else:
 		Input.mouse_mode = _old_mouse
+	if _glass != null:
+		_glass.visible = false
 	visibility_changed.emit(value)
 
 
@@ -117,8 +167,14 @@ func _input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	if _glass != null:
+		_glass.visible = not suspended
 	if gui == null or suspended:
 		return
+	_delta = delta
+	_glass_rects.clear()
+	if not gui.IsMouseDown(0):
+		_drag_id = ""
 	_sample_time += delta
 	if _sample_time >= 0.1:
 		_frame_times.append(delta * 1000.0)
@@ -133,55 +189,103 @@ func _process(delta: float) -> void:
 			if not is_instance_valid(context.target.get_ref()):
 				contexts.erase(id)
 				continue
+			if not context.open[0] or _opening:
+				context.fade = 0.0
 			if context.open[0]:
 				_draw_context(id, context, index)
 			index += 1
 		_layout_reset = false
+		_opening = false
 	_draw_watches()
+	_glass.visible = not _glass_rects.is_empty()
+	_glass_material.set_shader_parameter("panel_count", _glass_rects.size())
+	var padded := _glass_rects.duplicate()
+	padded.resize(16)
+	_glass_material.set_shader_parameter("panels", PackedVector4Array(padded))
+	_glass_material.set_shader_parameter("blur_lod", background_blur)
 
 
 func _draw_header() -> void:
-	gui.SetNextWindowPos(Vector2(12, 12))
+	gui.SetNextWindowPos(Vector2(16, 16))
+	gui.SetNextWindowBgAlpha(panel_opacity)
 	gui.Begin("DevAssistance##header", [], HEADER_FLAGS)
-	gui.Text("DevAssistance / " + (toggle_shortcut.get_as_text() if toggle_shortcut != null else "sem atalho"))
+	gui.Text("DEV ASSISTANCE")
+	gui.TextDisabled("Experimento em execução")
+	gui.Separator()
 	var index := 0
 	for id: String in contexts:
 		var context: Dictionary = contexts[id]
-		var clicked: bool
+		gui.BeginGroup()
+		if context.open[0]:
+			gui.PushStyleColor(21, Color("3a5d6d"))
+		var clicked := false
 		if context.icon != null:
-			clicked = gui.ImageButton("menu_" + id, context.icon, Vector2(24, 24))
+			clicked = gui.ImageButton("menu_" + id, context.icon, Vector2(42, 36))
 		else:
-			clicked = gui.Button(context.title + "##" + id)
+			clicked = gui.ButtonEx(context.title.left(2) + "##" + id, Vector2(62, 50))
+		if context.open[0]:
+			gui.PopStyleColor()
 		if clicked:
 			context.open[0] = not context.open[0]
-		_tip("Abrir/fechar ferramentas de " + context.title)
+		_tip("Abrir / recolher " + context.title)
+		gui.Text(context.title)
+		gui.EndGroup()
 		if index % 2 == 0 and index + 1 < contexts.size():
 			gui.SameLine()
 		index += 1
-	if gui.Button("Layout inicial"):
+	gui.Separator()
+	if gui.SmallButton("Reorganizar painéis"):
 		_layout_reset = true
-	gui.Text("%d FPS | %.1f ms" % [Engine.get_frames_per_second(), get_process_delta_time() * 1000.0])
+	gui.TextDisabled(toggle_shortcut.get_as_text() if toggle_shortcut != null else "Sem atalho")
+	gui.TextDisabled("%d FPS · %.1f ms" % [Engine.get_frames_per_second(), get_process_delta_time() * 1000.0])
+	_glass_panel()
 	gui.End()
+
+
+func _glass_panel() -> void:
+	if _glass_rects.size() >= 16:
+		return
+	var display: Vector2 = gui.GetIO().DisplaySize
+	var pos: Vector2 = gui.GetWindowPos() / display
+	var extent: Vector2 = gui.GetWindowSize() / display
+	_glass_rects.append(Vector4(pos.x, pos.y, extent.x, extent.y))
 
 
 func _draw_context(id: String, context: Dictionary, index: int) -> void:
 	# ImGui uses window pixels; canvas_items may expose a differently scaled Godot viewport.
 	var viewport_size: Vector2 = gui.GetIO().DisplaySize
-	var desired := Vector2(minf(410, viewport_size.x - 24), minf(560, viewport_size.y - 160))
+	var desired := Vector2(minf(430, viewport_size.x - 32), minf(590, viewport_size.y - 32))
 	gui.SetNextWindowSize(desired, 0 if _layout_reset else FIRST_USE)
-	gui.SetNextWindowPos(Vector2(12 + index * 36, 140 + index * 20), 0 if _layout_reset else FIRST_USE)
-	var expanded: bool = gui.Begin(context.title + "###devassistance_" + id, context.open)
+	if _layout_reset or context.position == Vector2.ZERO:
+		context.position = Vector2(240 + index * 450, 16).clamp(Vector2(16, 16), (viewport_size - desired).max(Vector2(16, 16)))
+		context.destination = context.position
+	context.fade = minf(1.0, context.fade + _delta * 8.0)
+	gui.SetNextWindowPos(context.position)
+	gui.SetNextWindowBgAlpha(panel_opacity * context.fade)
+	var expanded: bool = gui.Begin(context.title + "###devassistance_" + id, context.open, 4 | 256)
 	# Keep the whole window reachable, including its scrollbar, after resizing.
 	var window_size: Vector2 = gui.GetWindowSize()
 	var position: Vector2 = gui.GetWindowPos()
-	var available := (viewport_size - Vector2(24, 160)).max(Vector2(100, 60))
+	var available := (viewport_size - Vector2(32, 32)).max(Vector2(100, 60))
 	if expanded and (window_size.x > available.x or window_size.y > available.y):
 		window_size = window_size.min(available)
 		gui.SetWindowSize(window_size)
-	gui.SetWindowPos(position.clamp(Vector2.ZERO, (viewport_size - window_size).max(Vector2.ZERO)))
+	var mouse: Vector2 = gui.GetMousePos()
+	# Only the title bar starts a drag; sliders, tabs, close and collapse keep their input.
+	if gui.IsWindowHovered() and gui.IsMouseClicked(0) and mouse.y < position.y + gui.GetFrameHeight() and mouse.x > position.x + 30 and mouse.x < position.x + window_size.x - 30:
+		_drag_id = id
+		_drag_offset = mouse - position
+	if _drag_id == id:
+		context.destination = mouse - _drag_offset
+	var limit := (viewport_size - window_size).max(Vector2.ZERO)
+	context.destination = context.destination.clamp(Vector2.ZERO, limit)
+	context.position = context.position.lerp(context.destination, 1.0 if drag_response <= 0.0 else 1.0 - exp(-drag_response * _delta)).clamp(Vector2.ZERO, limit)
+	gui.SetWindowPos(context.position)
+	_glass_panel()
 	if expanded:
 		var target: Node = context.target.get_ref()
-		gui.TextWrapped("Alvo: " + str(target.get_path()))
+		gui.TextDisabled(str(target.name))
+		_tip("Alvo: " + str(target.get_path()))
 		if gui.BeginTabBar("context_tabs"):
 			if gui.BeginTabItem("Ajustes"):
 				for field: Dictionary in context.fields:
@@ -216,12 +320,13 @@ func _draw_field(id: String, target: Node, field: Dictionary) -> void:
 	_tip(field.description + "\nCtrl+clique no slider: digitar valor.")
 	if changed:
 		set_parameter(id, field.property, value[0])
-	var pinned := [field.pinned]
-	if gui.Checkbox("Fixar na tela", pinned):
-		field.pinned = pinned[0]
+	if gui.SmallButton("Fixado" if field.pinned else "Fixar"):
+		field.pinned = not field.pinned
+	_tip("Mostrar este valor mesmo com o menu oculto. Clique novamente para remover.")
 	gui.SameLine()
 	if gui.SmallButton("Restaurar"):
 		set_parameter(id, field.property, field.initial)
+	_tip("Recuperar o valor inicial deste parâmetro.")
 	gui.Separator()
 	gui.PopID()
 
@@ -245,7 +350,8 @@ func _draw_actions(id: String, context: Dictionary) -> void:
 	for preset: String in _presets.get_section_keys(id) if _presets.has_section(id) else []:
 		if gui.Button("Aplicar: " + preset):
 			load_preset(id, preset)
-	gui.TextWrapped(_message)
+	if not _message.is_empty():
+		gui.TextWrapped(_message)
 	gui.TextWrapped("Presets guardam parâmetros, não o estado completo da simulação.")
 
 
@@ -264,12 +370,16 @@ func _draw_watches() -> void:
 	var text_width := 0.0
 	for line: String in lines:
 		text_width = maxf(text_width, gui.CalcTextSize(line).x)
-	gui.SetNextWindowPos(Vector2(maxf(12, window_size.x - text_width - 24),
-		maxf(12, window_size.y - 20 - lines.size() * gui.GetTextLineHeightWithSpacing())))
-	gui.SetNextWindowBgAlpha(0.92)
+	var estimated := Vector2(text_width + 36, lines.size() * gui.GetTextLineHeightWithSpacing() + 32)
+	var extent := _watch_size if _watch_size != Vector2.ZERO else estimated
+	gui.SetNextWindowPos((window_size - extent - Vector2(12, 12)).max(Vector2.ZERO))
+	gui.SetNextWindowBgAlpha(panel_opacity)
 	gui.Begin("Observações##devassistance", [], WATCH_FLAGS)
 	for line: String in lines:
 		gui.Text(line)
+	# Use measured padding on the next frame, before ImGui emits the window's vertices.
+	_watch_size = gui.GetWindowSize()
+	_glass_panel()
 	gui.End()
 
 

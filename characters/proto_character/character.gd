@@ -18,6 +18,10 @@ extends CharacterBody3D
 @onready var camera: Camera3D = $CameraYaw/CameraPitch/SpringArm3D/Camera3D
 
 
+## Runtime gate for local commands. Physics, gravity and visual updates keep running.
+var input_enabled := true
+
+
 func _ready() -> void:
 	$CameraYaw/CameraPitch/SpringArm3D.add_excluded_object(get_rid())
 	if camera.is_current():
@@ -25,7 +29,7 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not camera.is_current():
+	if not input_enabled or not camera.is_current():
 		return
 	if event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -43,7 +47,7 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back") if input_enabled else Vector2.ZERO
 	var direction := camera_yaw.global_basis * Vector3(input.x, 0.0, input.y)
 	direction.y = 0.0
 	direction = direction.limit_length(1.0)
