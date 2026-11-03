@@ -10,6 +10,12 @@ When helping with this project:
 - Treat horror, psychological tension, body modification, and the hostile machine as the core creative direction.
 - The game is early-stage. Distinguish implemented features from ideas in the Obsidian vault, and don't assume planned systems already exist.
 
+# Architecture documentation
+
+- Use `C:/Users/bruno-f/Documents/SenseOverdrive Vault/Arquitetura/` as the space for documenting and defining systems, their responsibilities, and their relationships. Consult relevant notes and Obsidian Canvas (`.canvas`) diagrams when planning or changing a system.
+- Use Canvas to make system structure and connections explicit, with linked notes for details when useful. When editing an existing canvas, preserve its layout, cards, links, and identifiers except where the requested change requires an update.
+- Keep proposed architecture distinct from implemented behavior; verify the current implementation in the Godot project rather than treating a diagram as proof that a system exists.
+
 # Debug and iteration
 
 - Always provide a practical way to quickly test and adjust each feature at runtime, without requiring the developer to play through the game or reproduce normal player actions to reach it.
