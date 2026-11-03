@@ -4,13 +4,11 @@
 [ext_resource type="Texture2D" uid="uid://pfc41tne8ye6" path="res://3d/textures/kenney_prototype-textures/PNG/Dark/texture_04.png" id="2_jxe34"]
 [ext_resource type="PackedScene" uid="uid://daiwmw2r7yoho" path="res://characters/proto_character/character.tscn" id="3_jn645"]
 [ext_resource type="PackedScene" uid="uid://b3qb7tnepib61" path="res://3d/meshes/machine.blend" id="4_qvc4m"]
+[ext_resource type="PackedScene" path="res://effects/world_post_process.tscn" id="5_post"]
 
 [sub_resource type="Environment" id="Environment_pbjoa"]
 background_energy_multiplier = 0.33
-ssao_power = 26.62964
-adjustment_brightness = 1.28
-adjustment_contrast = 1.15
-adjustment_saturation = 0.76
+adjustment_enabled = false
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_edkep"]
 render_priority = 0
@@ -19,7 +17,7 @@ shader_parameter/tint = Color(0.5, 0.5, 0.5, 1)
 shader_parameter/tex = ExtResource("2_jxe34")
 shader_parameter/tiling = 1.0
 shader_parameter/metalic_value = 0.0
-shader_parameter/roughness_value = 0.0
+shader_parameter/roughness_value = 0.85
 
 [sub_resource type="BoxMesh" id="BoxMesh_1mht3"]
 material = SubResource("ShaderMaterial_edkep")
@@ -30,11 +28,14 @@ size = Vector3(10, 1, 10)
 
 [node name="room" type="Node3D" unique_id=246243601]
 
+[node name="WorldPostProcess" parent="." instance=ExtResource("5_post")]
+
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1372541612]
 transform = Transform3D(-0.7431448, -0.6691306, -2.9248628e-08, 0, -4.371139e-08, 1, -0.6691306, 0.7431448, 3.2483893e-08, 0, 0, 0)
 light_color = Color(0.27, 0.27, 0.27, 1)
 light_energy = 3.4
 shadow_enabled = true
+directional_shadow_max_distance = 30.0
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=486529396]
 environment = SubResource("Environment_pbjoa")

@@ -1,0 +1,27 @@
+# Godot 4.7.1-stable (official); forward_plus; d3d12; AMD Radeon(TM) Graphics
+width,height,moving,mode,wall_ms,fps,gpu_ms
+# filter: virtual_height=540; levels=32; contrast=1.00; saturation=1.00
+1280,720,false,before,4.809,208.0,1.183
+1280,720,false,materials,3.404,293.8,1.194
+1280,720,false,shadows,3.507,285.1,1.287
+1280,720,false,filtered,4.019,248.8,1.789
+1280,720,true,before,3.497,285.9,1.235
+1280,720,true,materials,3.344,299.1,1.268
+1280,720,true,shadows,3.427,291.8,1.338
+1280,720,true,filtered,3.774,265.0,1.708
+1920,1080,false,before,4.976,201.0,2.432
+1920,1080,false,materials,5.068,197.3,2.445
+1920,1080,false,shadows,4.575,218.6,2.286
+1920,1080,false,filtered,5.297,188.8,3.025
+1920,1080,true,before,4.936,202.6,2.312
+1920,1080,true,materials,4.505,222.0,2.318
+1920,1080,true,shadows,4.804,208.1,2.436
+1920,1080,true,filtered,5.687,175.8,3.241
+1100,800,false,before,3.454,289.5,1.264
+1100,800,false,materials,3.554,281.3,1.297
+1100,800,false,shadows,3.456,289.3,1.395
+1100,800,false,filtered,3.764,265.7,1.720
+1100,800,true,before,3.555,281.3,1.310
+1100,800,true,materials,3.462,288.9,1.346
+1100,800,true,shadows,3.611,277.0,1.438
+1100,800,true,filtered,3.968,252.0,1.779

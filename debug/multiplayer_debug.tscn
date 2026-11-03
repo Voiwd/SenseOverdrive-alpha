@@ -1,6 +1,7 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://debug/multiplayer_debug.gd" id="1"]
+[ext_resource type="PackedScene" path="res://effects/world_post_process.tscn" id="2_post"]
 
 [sub_resource type="BoxMesh" id="FloorMesh"]
 size = Vector3(24, 0.2, 24)
@@ -21,6 +22,8 @@ ambient_light_energy = 0.65
 
 [node name="MultiplayerDebug" type="Node3D"]
 script = ExtResource("1")
+
+[node name="WorldPostProcess" parent="." instance=ExtResource("2_post")]
 
 [node name="Players" type="Node3D" parent="."]
 
