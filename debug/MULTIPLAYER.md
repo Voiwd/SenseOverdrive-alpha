@@ -27,6 +27,8 @@ O painel pode mostrar mais de um IP por causa de VPNs e adaptadores virtuais. Us
 
 ## O que conferir rapidamente
 
+- **Imagem local:** F8 alterna o filtro apenas na janela ativa. Ajuste os parâmetros no Inspector remoto em `MultiplayerDebug/WorldPostProcess`. A interface fica na camada 10, acima do filtro. Teste visual isolado, controles e medições: [VISUAL.md](VISUAL.md).
+
 - **Movimento e direção:** ande e gire a câmera em uma janela; veja o outro personagem se mover e virar na outra.
 - **Entrada tardia:** mova o host antes de conectar outro jogador; o cliente deve receber sua posição atual.
 - **Saída e reconexão:** desconecte um cliente; seu personagem deve desaparecer. Clique **Entrar** novamente para voltar.

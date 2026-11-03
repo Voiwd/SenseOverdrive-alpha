@@ -61,6 +61,11 @@ func start_host() -> bool:
 	return true
 
 
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_pressed() and not event.is_echo() and event.keycode == KEY_F8:
+		$WorldPostProcess.enabled = not $WorldPostProcess.enabled
+
+
 func join_host() -> void:
 	var address := address_field.text.strip_edges()
 	if address.is_empty():
@@ -193,6 +198,7 @@ func _update_peers_label() -> void:
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
+	layer.layer = 10
 	add_child(layer)
 	var panel := PanelContainer.new()
 	panel.position = Vector2(12, 12)
@@ -234,6 +240,7 @@ func _build_ui() -> void:
 	_label(column, "Seu IP na rede: " + _lan_addresses())
 	_label(column, "Clique na arena: capturar mouse · Esc: liberar · WASD/setas: mover · Shift: correr")
 	_label(column, "Alt+Tab: trocar janela · Repor posição: voltar ao ponto inicial")
+	_label(column, "F8: comparar filtro local ligado/desligado · Ajustes: Inspector remoto > WorldPostProcess")
 	_set_active(false)
 
 
