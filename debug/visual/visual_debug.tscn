@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3]
 
-[ext_resource type="Script" path="res://debug/visual_debug.gd" id="1"]
+[ext_resource type="Script" path="res://debug/visual/visual_debug.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/room.tscn" id="2"]
 
 [node name="VisualDebug" type="Node3D"]

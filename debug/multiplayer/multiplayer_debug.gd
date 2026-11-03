@@ -1,8 +1,8 @@
 extends Node3D
 ## Isolated ENet/LAN sandbox. Nothing here is an autoload or used by the main scene.
 
-const PLAYER := preload("res://debug/multiplayer_player.tscn")
-const SCENE_PATH := "res://debug/multiplayer_debug.tscn"
+const PLAYER := preload("res://debug/multiplayer/multiplayer_player.tscn")
+const SCENE_PATH := "res://debug/multiplayer/multiplayer_debug.tscn"
 const MAX_PLAYERS := 4
 
 @export_range(1024, 65535) var default_port := 7000

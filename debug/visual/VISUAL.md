@@ -2,7 +2,7 @@
 
 ## Teste rápido
 
-Abra `res://debug/visual_debug.tscn` e pressione **F6**. O painel à direita ajusta cada efeito durante a execução. Role o painel se a janela for pequena.
+Abra `res://debug/visual/visual_debug.tscn` e pressione **F6**. O painel à direita ajusta cada efeito durante a execução. Role o painel se a janela for pequena.
 
 | Controle | Ação |
 | --- | --- |
@@ -17,7 +17,7 @@ Abra `res://debug/visual_debug.tscn` e pressione **F6**. O painel à direita aju
 
 Na árvore **Remote**, `Room/WorldPostProcess` expõe todos os controles. `Room/DirectionalLight3D` permite ajustar alcance, splits, bias e blur pelas propriedades nativas da Godot. O material do chão pode ser ajustado em `Room/FloorBlock/MeshInstance3D > Material Override > Shader Parameters`. Os controles do painel são uma alternativa ao Inspector remoto; não persistem mudanças nem acompanham edições simultâneas feitas pelo Inspector.
 
-Em `res://debug/multiplayer_debug.tscn`, use **F6 → Testar 2 janelas**. **F8** alterna o filtro apenas na janela ativa. Ajustes individuais: `MultiplayerDebug/WorldPostProcess` no Inspector remoto. Conecte/desconecte para alternar entre visão geral e câmera local. A interface permanece acima do filtro e o overlay ignora o mouse.
+Em `res://debug/multiplayer/multiplayer_debug.tscn`, use **F6 → Testar 2 janelas**. **F8** alterna o filtro apenas na janela ativa. Ajustes individuais: `MultiplayerDebug/WorldPostProcess` no Inspector remoto. Conecte/desconecte para alternar entre visão geral e câmera local. A interface permanece acima do filtro e o overlay ignora o mouse.
 
 ## Método e integração
 
@@ -51,7 +51,7 @@ Capturas no último ângulo da mesma órbita, com o filtro desligado: [anterior]
 
 Coleta em 03/11/2026: **Godot 4.7.1 stable**, Forward+, D3D12, **AMD Radeon(TM) Graphics**, driver Windows 31.0.21921.1000. Desktop de desenvolvimento, com editor e teste IK preexistentes abertos; sem GPU-alvo ou orçamento de FPS acordado. É uma medição local, sem isolamento de carga/temperatura e sem garantia para outros computadores.
 
-Cada caso aquece 120 frames e mede 240. VSync e limite de FPS são desligados e restaurados ao terminar; câmera, tamanho da janela e estados de comparação também são restaurados. A órbita de medição usa os mesmos 240 ângulos em cada caso. PNGs são gravados depois da janela medida. Os casos `before`, `materials`, `shadows`, `filtered` adicionam respectivamente: referência original; correção de material; alcance 30 m; filtro. O shader original é preservado apenas em `debug/reference/` para comparação, sem uso pela cena principal.
+Cada caso aquece 120 frames e mede 240. VSync e limite de FPS são desligados e restaurados ao terminar; câmera, tamanho da janela e estados de comparação também são restaurados. A órbita de medição usa os mesmos 240 ângulos em cada caso. PNGs são gravados depois da janela medida. Os casos `before`, `materials`, `shadows`, `filtered` adicionam respectivamente: referência original; correção de material; alcance 30 m; filtro. O shader original é preservado apenas em `debug/visual/reference/` para comparação, sem uso pela cena principal.
 
 Dados completos, incluindo **ms/frame, FPS e GPU por etapa**, em [measurements.csv](sen5_evidence/measurements.csv). O tempo de GPU reportado pela Godot não substitui o tempo total do frame. A queda de tempo total em alguns casos não demonstra otimização; há variação de carga/aquecimento.
 
@@ -68,7 +68,7 @@ O custo adicional observado do filtro, comparado a `shadows`, foi **0,33–0,81 
 
 Verificações executadas com renderer real:
 
-- `Godot --path . --script res://debug/verify_post_process.gd`: 15 verificações passaram, incluindo neutralidade, cinza, quantização, bypass, atualização em runtime, HUD nítido, materiais independentes entre viewports, blocos quadrados nas três resoluções e troca de câmera sem duplicação.
+- `Godot --path . --script res://debug/visual/verify_post_process.gd`: 15 verificações passaram, incluindo neutralidade, cinza, quantização, bypass, atualização em runtime, HUD nítido, materiais independentes entre viewports, blocos quadrados nas três resoluções e troca de câmera sem duplicação.
 - Duas instâncias ENet conectadas: dois personagens, câmera local correta, um overlay em cada viewport; saturação zero no host preservou saturação 1 no cliente. Troca de câmera, saída do cliente, retorno à visão geral e preservação do filtro passaram.
 - Importação e execução sem erros de shader/script. Teste visual permite repetir as comparações e o controle do personagem sem avançar no jogo.
 
