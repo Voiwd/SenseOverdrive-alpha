@@ -8,21 +8,34 @@ const BEFORE_SHADER := preload("res://debug/visual/reference/blocks_before_sen5.
 @onready var camera: Camera3D = $Camera
 @onready var player: CharacterBody3D = $Room/Character
 @onready var floor_mesh: MeshInstance3D = $Room/FloorBlock/MeshInstance3D
+@onready var _initial_player_transform := player.transform
+@onready var _initial_yaw: Vector3 = player.camera_yaw.rotation
+@onready var _initial_pitch: Vector3 = player.camera_pitch.rotation
 var original_material: ShaderMaterial
 var corrected_material: ShaderMaterial
-var original_shadows := false
-var original_materials := false
+var original_shadows := false:
+	set(value):
+		original_shadows = value
+		if is_node_ready():
+			_apply_comparison()
+var original_materials := false:
+	set(value):
+		original_materials = value
+		if is_node_ready():
+			_apply_comparison()
 var moving := false
 var angle := 0.0
-var ui: CanvasLayer
-var column: VBoxContainer
-var metrics: Label
+var ui: DevAssistance
+var player_view := false
 var benchmarking := false
-var switches: Dictionary = {}
 
 
 func _ready() -> void:
-	get_window().title = "Sense Overdrive | SEN-5 visual debug"
+	if not OS.is_debug_build():
+		set_process(false)
+		set_process_unhandled_key_input(false)
+		return
+	get_window().title = "Sense Overdrive | DevAssistance / Visual"
 	get_window().size = Vector2i(1280, 720)
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -43,29 +56,26 @@ func _process(delta: float) -> void:
 	if moving:
 		angle += delta * 0.25
 		_update_camera()
-	var rid := get_viewport().get_viewport_rid()
-	metrics.text = "%d FPS | GPU %.2f ms\nViewport %s | grade virtual %.0f × %d" % [
-		Engine.get_frames_per_second(), RenderingServer.viewport_get_measured_render_time_gpu(rid),
-		get_viewport().get_visible_rect().size,
-		post.virtual_height * get_viewport().get_visible_rect().size.aspect(), post.virtual_height]
+
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if benchmarking or not event.is_pressed() or event.is_echo():
 		return
 	if event.keycode == KEY_F1:
-		switches["enabled"].button_pressed = not post.enabled
+		post.enabled = not post.enabled
 	elif event.keycode == KEY_F2:
-		switches["original_shadows"].button_pressed = not original_shadows
+		original_shadows = not original_shadows
 	elif event.keycode == KEY_F3:
-		switches["original_materials"].button_pressed = not original_materials
+		original_materials = not original_materials
 	elif event.keycode == KEY_F4:
-		switches["moving"].button_pressed = not moving
+		moving = not moving
 	elif event.keycode == KEY_HOME:
 		_reset_camera()
 
 
 func _reset_camera() -> void:
+	player_view = false
 	angle = 0.0
 	camera.make_current()
 	_update_camera()
@@ -79,6 +89,8 @@ func _update_camera() -> void:
 
 
 func _player_camera() -> void:
+	player_view = true
+	ui.set_tools_visible(false)
 	player.process_mode = Node.PROCESS_MODE_INHERIT
 	player.camera.make_current()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -91,95 +103,63 @@ func _apply_comparison() -> void:
 
 
 func _build_ui() -> void:
-	ui = CanvasLayer.new()
-	ui.layer = 10
+	ui = DevAssistance.new()
+	ui.name = "DevAssistance"
 	add_child(ui)
-	var panel := PanelContainer.new()
-	panel.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
-	panel.offset_left = -340
-	panel.offset_right = -12
-	panel.offset_top = 12
-	panel.offset_bottom = -12
-	ui.add_child(panel)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	panel.add_child(scroll)
-	column = VBoxContainer.new()
-	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_theme_constant_override("separation", 6)
-	scroll.add_child(column)
-	_label("SEN-5 · IMAGEM 3D / UI NÍTIDA")
-	_label("F1: filtro · F2: sombras · F3: material\nF4: órbita · Home: câmera inicial")
-	_toggle("enabled", "Pós-processamento (F1)", post.enabled, func(v: bool): post.enabled = v)
-	_toggle("pixelization_enabled", "Pixelização", post.pixelization_enabled, func(v: bool): post.pixelization_enabled = v)
-	_number("Resolução vertical virtual", 90, 2160, 1, post.virtual_height, func(v: float): post.virtual_height = int(v))
-	_toggle("posterization_enabled", "Posterização", post.posterization_enabled, func(v: bool): post.posterization_enabled = v)
-	_number("Níveis por canal RGB", 2, 256, 1, post.color_levels, func(v: float): post.color_levels = int(v))
-	_toggle("contrast_enabled", "Contraste (1 = neutro)", post.contrast_enabled, func(v: bool): post.contrast_enabled = v)
-	_number("Contraste", 0, 2, 0.01, post.contrast, func(v: float): post.contrast = v)
-	_toggle("saturation_enabled", "Saturação (0 cinza / 1 neutro)", post.saturation_enabled, func(v: bool): post.saturation_enabled = v)
-	_number("Saturação", 0, 2, 0.01, post.saturation, func(v: float): post.saturation = v)
-	_toggle("original_shadows", "Sombras: original 100 m (F2)", false, func(v: bool):
-		original_shadows = v
-		_apply_comparison())
-	_toggle("original_materials", "Material: original (F3)", false, func(v: bool):
-		original_materials = v
-		_apply_comparison())
-	_toggle("moving", "Órbita em movimento (F4)", false, func(v: bool): moving = v)
-	_button("Câmera inicial / sair do personagem", _reset_camera)
-	_button("Câmera do personagem (Esc: mouse)", _player_camera)
-	var sizes := HBoxContainer.new()
-	column.add_child(sizes)
-	for size in [Vector2i(1280, 720), Vector2i(1920, 1080), Vector2i(1100, 800)]:
-		var button := Button.new()
-		button.text = "%d×%d" % [size.x, size.y]
-		sizes.add_child(button)
-		button.pressed.connect(func(): get_window().size = size)
-	_button("Medir e capturar A/B (~1 min)", benchmark)
-	_label("A medição oculta este painel e desliga VSync.\nResultado: user://sen5/ (CSV + PNG).\nLuz: Remote > Room/DirectionalLight3D.\nFiltro: Remote > Room/WorldPostProcess.")
-	metrics = _label("")
+	ui.visibility_changed.connect(_tools_visibility_changed)
+	ui.register_context("visual.filters", "Visual", preload("res://addons/dev_assistance/icons/visual.svg"), post, [
+		_field("enabled", "Filtro (F1)", "Liga ou desliga todo o pós-processamento."),
+		_field("pixelization_enabled", "Pixelização", "Reduz a resolução virtual da imagem 3D."),
+		_field("virtual_height", "Altura virtual", "Pixels verticais. Menos pixels produzem blocos maiores.", 90, 2160),
+		_field("posterization_enabled", "Posterização", "Limita o número de níveis por canal de cor."),
+		_field("color_levels", "Níveis RGB", "Níveis por canal. Menos níveis aumentam as faixas de cor.", 2, 256),
+		_field("contrast_enabled", "Ajustar contraste", "Ativa o multiplicador de contraste."),
+		_field("contrast", "Contraste", "1 é neutro; valores maiores acentuam diferenças de luminosidade.", 0, 2),
+		_field("saturation_enabled", "Ajustar saturação", "Ativa o ajuste de intensidade das cores."),
+		_field("saturation", "Saturação", "0 é cinza; 1 é neutro; acima de 1 intensifica as cores.", 0, 2),
+	], [
+		_action("Sem filtro", "Comparar o resultado com a imagem 3D sem filtro.", func(): post.enabled = false),
+		_action("Filtro ativo", "Retomar o filtro com os parâmetros atuais.", func(): post.enabled = true),
+	])
+	ui.register_context("visual.experiment", "Experimento", preload("res://addons/dev_assistance/icons/experiment.svg"), self, [
+		_field("original_shadows", "Sombras originais (F2)", "Compara alcance original de 100 m com o corrigido de 30 m."),
+		_field("original_materials", "Material original (F3)", "Alterna o material de referência e o material corrigido."),
+		_field("moving", "Órbita (F4)", "Gira a câmera ao redor da sala durante a comparação."),
+	], [
+		_action("Reiniciar experimento", "Restaura parâmetros, comparações e câmera inicial.", _reset_experiment),
+		_action("Câmera inicial (Home)", "Volta à vista de órbita e desativa o controle do personagem.", _reset_camera),
+		_action("Controlar personagem", "Fecha as ferramentas e captura o mouse. F9 reabre e suspende o personagem.", _player_camera),
+		_action("Janela 1280 x 720", "Resolução de teste.", func(): get_window().size = Vector2i(1280, 720)),
+		_action("Janela 1920 x 1080", "Resolução de teste.", func(): get_window().size = Vector2i(1920, 1080)),
+		_action("Janela 800 x 600", "Verificar acesso aos controles em uma janela menor.", func(): get_window().size = Vector2i(800, 600)),
+		_action("Medir e capturar A/B", "Oculta as ferramentas, desliga VSync e mede as comparações. Resultados: user://sen5/.", benchmark),
+	])
+	ui.contexts["visual.filters"].open[0] = true
 
 
-func _label(text: String) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.add_theme_font_size_override("font_size", 13)
-	column.add_child(label)
-	return label
+func _field(property: String, label: String, description: String, minimum := 0.0, maximum := 1.0) -> Dictionary:
+	return {"property": property, "label": label, "description": description, "min": minimum, "max": maximum}
 
 
-func _toggle(key: String, text: String, value: bool, action: Callable) -> void:
-	var button := CheckButton.new()
-	button.text = text
-	button.button_pressed = value
-	button.add_theme_font_size_override("font_size", 13)
-	column.add_child(button)
-	button.toggled.connect(action)
-	switches[key] = button
+func _action(label: String, description: String, callback: Callable) -> Dictionary:
+	return {"label": label, "description": description, "callback": callback}
 
 
-func _number(text: String, minimum: float, maximum: float, step: float, value: float, action: Callable) -> void:
-	var row := HBoxContainer.new()
-	column.add_child(row)
-	var label := Label.new()
-	label.text = text
-	label.add_theme_font_size_override("font_size", 13)
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(label)
-	var field := SpinBox.new()
-	field.min_value = minimum
-	field.max_value = maximum
-	field.step = step
-	field.value = value
-	row.add_child(field)
-	field.value_changed.connect(action)
+func _tools_visibility_changed(open: bool) -> void:
+	if player_view:
+		player.process_mode = Node.PROCESS_MODE_DISABLED if open else Node.PROCESS_MODE_INHERIT
 
 
-func _button(text: String, action: Callable) -> void:
-	var button := Button.new()
-	button.text = text
-	column.add_child(button)
-	button.pressed.connect(action)
+func _reset_experiment() -> void:
+	ui.reset_parameters("visual.filters")
+	ui.reset_parameters("visual.experiment")
+	player.transform = _initial_player_transform
+	player.velocity = Vector3.ZERO
+	player.camera_yaw.rotation = _initial_yaw
+	player.camera_pitch.rotation = _initial_pitch
+	player.visual.quaternion = Quaternion.IDENTITY
+	player.rig.rotation = Vector3.ZERO
+	_reset_camera()
 
 
 func _build_samples() -> void:
@@ -225,7 +205,7 @@ func benchmark() -> void:
 	var old_mouse := Input.mouse_mode
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	camera.make_current()
-	ui.visible = false
+	ui.suspended = true
 	moving = false
 	Engine.max_fps = 0
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
@@ -279,7 +259,7 @@ func benchmark() -> void:
 	player.process_mode = old_player_mode
 	old_camera.make_current()
 	Input.mouse_mode = old_mouse
-	ui.visible = true
+	ui.suspended = false
 	benchmarking = false
 	print("[SEN5] Captures: ", ProjectSettings.globalize_path("user://sen5"))
 	if "--visual-verify" in OS.get_cmdline_user_args():
