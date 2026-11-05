@@ -137,4 +137,3 @@ func _run() -> void:
 	_check(not handler.contexts.has("first") and not handler.contexts.has("second"), "Shared target removes all contexts")
 	print("[DevAssistance Design] %d checks; failed=%s" % [checks, failed])
 	quit(1 if failed else 0)
-
