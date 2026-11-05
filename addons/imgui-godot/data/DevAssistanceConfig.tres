@@ -1,8 +1,34 @@
-[gd_resource type="Resource" script_class="ImGuiConfig" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ImGuiConfig" load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://addons/imgui-godot/scripts/ImGuiConfig.gd" id="1"]
 
+[ext_resource type="Script" path="res://addons/imgui-godot/scripts/ImGuiFont.gd" id="2"]
+[ext_resource type="FontFile" path="res://addons/dev_assistance/fonts/Nunito-Regular.ttf" id="3"]
+[ext_resource type="FontFile" path="res://addons/dev_assistance/fonts/Nunito-Bold.ttf" id="4"]
+[ext_resource type="FontFile" path="res://addons/dev_assistance/fonts/IBMPlexMono-Regular.ttf" id="5"]
+
+[sub_resource type="Resource" id="Font"]
+script = ExtResource("2")
+FontData = ExtResource("3")
+FontSize = 18
+Merge = false
+
+[sub_resource type="Resource" id="Bold"]
+script = ExtResource("2")
+FontData = ExtResource("4")
+FontSize = 24
+Merge = false
+
+[sub_resource type="Resource" id="Mono"]
+script = ExtResource("2")
+FontData = ExtResource("5")
+FontSize = 14
+Merge = false
+
 [resource]
 script = ExtResource("1")
-Scale = 1.25
+Scale = 1.0
 IniFilename = ""
+
+AddDefaultFont = false
+Fonts = [SubResource("Font"), SubResource("Bold"), SubResource("Mono")]

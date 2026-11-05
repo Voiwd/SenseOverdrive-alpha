@@ -107,7 +107,7 @@ func _build_ui() -> void:
 	ui.name = "DevAssistance"
 	add_child(ui)
 	ui.visibility_changed.connect(_tools_visibility_changed)
-	ui.register_context("visual.filters", "Visual", preload("res://addons/dev_assistance/icons/visual.svg"), post, [
+	ui.register_context("visual.filters", "Visual", preload("res://addons/dev_assistance/icons/figma/visual.svg"), post, [
 		_field("enabled", "Filtro (F1)", "Liga ou desliga todo o pós-processamento."),
 		_field("pixelization_enabled", "Pixelização", "Reduz a resolução virtual da imagem 3D."),
 		_field("virtual_height", "Altura virtual", "Pixels verticais. Menos pixels produzem blocos maiores.", 90, 2160),
@@ -121,14 +121,14 @@ func _build_ui() -> void:
 		_action("Sem filtro", "Comparar o resultado com a imagem 3D sem filtro.", func(): post.enabled = false),
 		_action("Filtro ativo", "Retomar o filtro com os parâmetros atuais.", func(): post.enabled = true),
 	])
-	ui.register_context("visual.experiment", "Experimento", preload("res://addons/dev_assistance/icons/experiment.svg"), self, [
+	ui.register_context("visual.experiment", "Experimento", preload("res://addons/dev_assistance/icons/figma/experiment.svg"), self, [
 		_field("original_shadows", "Sombras originais (F2)", "Compara alcance original de 100 m com o corrigido de 30 m."),
 		_field("original_materials", "Material original (F3)", "Alterna o material de referência e o material corrigido."),
 		_field("moving", "Órbita (F4)", "Gira a câmera ao redor da sala durante a comparação."),
 	], [
 		_action("Reiniciar experimento", "Restaura parâmetros, comparações e câmera inicial.", _reset_experiment),
 		_action("Câmera inicial (Home)", "Volta à vista de órbita e desativa o controle do personagem.", _reset_camera),
-		_action("Controlar personagem", "Fecha as ferramentas e captura o mouse. Ctrl+Alt+D reabre e suspende o personagem.", _player_camera),
+		_action("Controlar personagem", "Fecha as ferramentas e captura o mouse. Ctrl+Alt+D reabre sem pausar a simulação.", _player_camera),
 		_action("Janela 1280 x 720", "Resolução de teste.", func(): get_window().size = Vector2i(1280, 720)),
 		_action("Janela 1920 x 1080", "Resolução de teste.", func(): get_window().size = Vector2i(1920, 1080)),
 		_action("Janela 800 x 600", "Verificar acesso aos controles em uma janela menor.", func(): get_window().size = Vector2i(800, 600)),
@@ -147,7 +147,7 @@ func _action(label: String, description: String, callback: Callable) -> Dictiona
 
 func _tools_visibility_changed(open: bool) -> void:
 	if player_view:
-		player.process_mode = Node.PROCESS_MODE_DISABLED if open else Node.PROCESS_MODE_INHERIT
+		player.input_enabled = not open
 
 
 func _reset_experiment() -> void:
