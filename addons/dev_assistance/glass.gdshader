@@ -8,8 +8,8 @@ void fragment() {
  for (int i = 0; i < panel_count; i++) {
   vec2 extent = panels[i].zw / SCREEN_PIXEL_SIZE;
   vec2 p = (SCREEN_UV - panels[i].xy - panels[i].zw * 0.5) / SCREEN_PIXEL_SIZE;
-  vec2 q = abs(p) - extent * 0.5 + 10.0;
-  float d = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - 10.0;
+  vec2 q = abs(p) - extent * 0.5 + 14.0;
+  float d = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - 14.0;
   mask = max(mask, 1.0 - smoothstep(-1.0, 1.0, d));
  }
  if (mask <= 0.0) { discard; }

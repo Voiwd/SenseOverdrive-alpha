@@ -17,13 +17,13 @@ signal visibility_changed(open: bool)
 ## Desfoque do fundo em níveis de mipmap (0–5). Zero mantém o fundo nítido.
 @export_range(0.0, 5.0, 0.1) var background_blur := 2.5
 ## Opacidade dos painéis (0–1). Maior melhora o contraste e oculta mais a cena.
-@export_range(0.3, 1.0, 0.01) var panel_opacity := 0.86
+@export_range(0.3, 1.0, 0.01) var panel_opacity := 0.96
 
 const PRESET_PATH := "user://devassistance/presets.cfg"
 # Dear ImGui flags, kept local so this script also parses without the extension in release.
-const HEADER_FLAGS := 1 | 2 | 4 | 64 | 256 # NoTitleBar, NoResize, NoMove, AutoResize, NoSavedSettings.
+const PANEL_FLAGS := 1 | 2 | 4 | 8 | 256 # NoTitleBar, NoResize, NoMove, NoScrollbar, NoSavedSettings.
+const FigmaSkin := preload("res://addons/dev_assistance/figma_skin.gd")
 const WATCH_FLAGS := 1 | 64 | 256 | 512 # NoTitleBar, AutoResize, NoSavedSettings, NoMouseInputs.
-const FIRST_USE := 4
 
 var contexts: Dictionary = {}
 var tools_visible := false
@@ -44,6 +44,9 @@ var _drag_offset := Vector2.ZERO
 var _delta := 0.0
 var _opening := true
 var _watch_size := Vector2.ZERO
+var _skin: FigmaSkin
+var _header := {"position": Vector2(24, 16), "destination": Vector2(24, 16)}
+var _header_height := 116.0
 
 
 static func _default_shortcut() -> Shortcut:
@@ -67,27 +70,8 @@ func _ready() -> void:
 		set_process_input(false)
 		return
 	gui = Engine.get_singleton("ImGuiAPI")
-	var style: Object = gui.GetStyle()
-	style.WindowRounding = 10.0
-	style.FrameRounding = 5.0
-	style.GrabRounding = 5.0
-	style.TabRounding = 5.0
-	style.WindowPadding = Vector2(18, 16)
-	style.FramePadding = Vector2(10, 7)
-	style.ItemSpacing = Vector2(10, 10)
-	style.ItemInnerSpacing = Vector2(8, 6)
-	style.ScrollbarSize = 14.0
-	# Dear ImGui color indices: text, muted text, panel, border and interaction states.
-	var colors: PackedColorArray = style._GetColors()
-	for entry in [[0, Color("e7edf3")], [1, Color("9caebd")],
-		[2, Color("121b25")], [5, Color("344451")],
-		[7, Color("263847")], [8, Color("365367")], [9, Color("466c82")],
-		[10, Color("182633")], [11, Color("233849")], [12, Color("182633")],
-		[18, Color("8bd7cf")], [19, Color("70b6b2")], [20, Color("a2eee1")],
-		[21, Color("263e4d")], [22, Color("3a5d6d")], [23, Color("507b87")],
-		[24, Color("294451")], [25, Color("3a5d6d")], [26, Color("507b87")]]:
-		colors[entry[0]] = entry[1]
-	style._SetColors(colors)
+	_skin = FigmaSkin.new(gui)
+	_skin.configure()
 	_glass = CanvasLayer.new()
 	_glass.layer = 127 # Immediately below the configured ImGui layer (128).
 	add_child(_glass)
@@ -123,13 +107,15 @@ func register_context(id: String, title: String, icon: Texture2D, target: Node,
 		field["pinned"] = false
 		fields.append(field)
 	contexts[id] = {"title": title, "icon": icon, "target": weakref(target),
-		"fields": fields, "actions": actions, "position": Vector2.ZERO, "destination": Vector2.ZERO, "fade": 0.0, "open": [false], "preset_name": ["Meu preset"]}
-	# Remove both the menu and its watches before its target leaves the scene.
-	target.tree_exiting.connect(_target_exiting.bind(id, target.get_instance_id()), CONNECT_ONE_SHOT)
+		"fields": fields, "actions": actions, "position": Vector2.ZERO, "destination": Vector2.ZERO, "fade": 0.0, "open": [false], "preset_name": ["Meu preset"], "preset": "Padrão", "tab": "", "collapsed": false}
+	# One connection per target, even when several contexts share that target.
+	var cleanup := _target_exiting.bind(target.get_instance_id())
+	if not target.tree_exiting.is_connected(cleanup):
+		target.tree_exiting.connect(cleanup, CONNECT_ONE_SHOT)
 
 
-func _target_exiting(id: String, instance_id: int) -> void:
-	if contexts.has(id):
+func _target_exiting(instance_id: int) -> void:
+	for id: String in contexts.keys():
 		var target: Node = contexts[id].target.get_ref()
 		if target == null or target.get_instance_id() == instance_id:
 			contexts.erase(id)
@@ -172,6 +158,7 @@ func _process(delta: float) -> void:
 	if gui == null or suspended:
 		return
 	_delta = delta
+	_skin.refresh_fonts()
 	_glass_rects.clear()
 	if not gui.IsMouseDown(0):
 		_drag_id = ""
@@ -206,40 +193,64 @@ func _process(delta: float) -> void:
 
 
 func _draw_header() -> void:
-	gui.SetNextWindowPos(Vector2(16, 16))
+	_header_height = 68.0 + ceilf(maxi(1, contexts.size()) / 4.0) * 48.0
+	var size := Vector2(356, _header_height)
+	if _layout_reset:
+		_header.position = Vector2(24, 16)
+		_header.destination = _header.position
+	_move_panel("##header", _header, size)
+	_skin.shadow(_header.position, size, 1.0)
+	gui.SetNextWindowPos(_header.position)
+	gui.SetNextWindowSize(size)
 	gui.SetNextWindowBgAlpha(panel_opacity)
-	gui.Begin("DevAssistance##header", [], HEADER_FLAGS)
-	gui.Text("DEV ASSISTANCE")
-	gui.TextDisabled("Experimento em execução")
-	gui.Separator()
+	gui.Begin("DevAssistance##header", [], PANEL_FLAGS)
+	_skin.hit("drag_header", Vector2(8, 5), Vector2(195, 34), "Arraste para mover. Duplo clique reorganiza os painéis.")
+	_start_drag("##header", _header)
+	if gui.IsItemHovered() and gui.IsMouseDoubleClicked(0):
+		_layout_reset = true
+		_drag_id = ""
+		_header.position = Vector2(24, 16)
+		_header.destination = _header.position
+		for context: Dictionary in contexts.values():
+			context.position = Vector2.ZERO
+	_skin.icon(Vector2(11, 11), _skin.icons.drag)
+	_skin.text(Vector2(37, 12), "DevAssistance", 16, FigmaSkin.TEXT, 1)
+	_skin.box(Vector2(212, 12), Vector2(101, 22), FigmaSkin.SURFACE)
+	var shortcut := toggle_shortcut.get_as_text() if toggle_shortcut != null else "Sem atalho"
+	_skin.text(Vector2(221, 17), shortcut, 10, FigmaSkin.MUTED, 2)
+	if _skin.icon_button("hide", Vector2(324, 15), "hide", "Ocultar ferramentas · " + shortcut):
+		set_tools_visible(false)
+	_skin.box(Vector2(13, 45), Vector2(328, 1), FigmaSkin.BORDER, 0)
 	var index := 0
 	for id: String in contexts:
 		var context: Dictionary = contexts[id]
-		gui.BeginGroup()
-		if context.open[0]:
-			gui.PushStyleColor(21, Color("3a5d6d"))
-		var clicked := false
-		if context.icon != null:
-			clicked = gui.ImageButton("menu_" + id, context.icon, Vector2(42, 36))
-		else:
-			clicked = gui.ButtonEx(context.title.left(2) + "##" + id, Vector2(62, 50))
-		if context.open[0]:
-			gui.PopStyleColor()
-		if clicked:
+		var at := Vector2(13 + index % 4 * 84, 57 + index / 4 * 48)
+		if _skin.hit("menu_" + id, at, Vector2(76, 42), "Abrir / recolher " + context.title):
 			context.open[0] = not context.open[0]
-		_tip("Abrir / recolher " + context.title)
-		gui.Text(context.title)
-		gui.EndGroup()
-		if index % 2 == 0 and index + 1 < contexts.size():
-			gui.SameLine()
+		_skin.box(at, Vector2(76, 42), FigmaSkin.ACTIVE if context.open[0] else (FigmaSkin.SURFACE.lightened(0.08) if gui.IsItemHovered() else Color("202532")), 8, Color("8c77b6") if context.open[0] else Color.TRANSPARENT)
+		if context.icon != null:
+			_skin.icon(at + (Vector2(76, 42) - context.icon.get_size()) * 0.5, context.icon)
+		else:
+			_skin.text(at + Vector2(23, 13), context.title.left(3), 12)
+		if context.open[0]:
+			_skin.box(at + Vector2(34, 36), Vector2(8, 2), FigmaSkin.ACCENT, 1)
 		index += 1
-	gui.Separator()
-	if gui.SmallButton("Reorganizar painéis"):
-		_layout_reset = true
-	gui.TextDisabled(toggle_shortcut.get_as_text() if toggle_shortcut != null else "Sem atalho")
-	gui.TextDisabled("%d FPS · %.1f ms" % [Engine.get_frames_per_second(), get_process_delta_time() * 1000.0])
 	_glass_panel()
 	gui.End()
+
+
+func _start_drag(id: String, state: Dictionary) -> void:
+	if gui.IsItemActivated():
+		_drag_id = id
+		_drag_offset = gui.GetMousePos() - state.position
+
+
+func _move_panel(id: String, state: Dictionary, size: Vector2) -> void:
+	if _drag_id == id:
+		state.destination = gui.GetMousePos() - _drag_offset
+	var limit: Vector2 = (gui.GetIO().DisplaySize - size).max(Vector2.ZERO)
+	state.destination = state.destination.clamp(Vector2.ZERO, limit)
+	state.position = state.position.lerp(state.destination, 1.0 if drag_response <= 0.0 else 1.0 - exp(-drag_response * _delta)).clamp(Vector2.ZERO, limit)
 
 
 func _glass_panel() -> void:
@@ -252,88 +263,183 @@ func _glass_panel() -> void:
 
 
 func _draw_context(id: String, context: Dictionary, index: int) -> void:
-	# ImGui uses window pixels; canvas_items may expose a differently scaled Godot viewport.
 	var viewport_size: Vector2 = gui.GetIO().DisplaySize
-	var desired := Vector2(minf(430, viewport_size.x - 32), minf(590, viewport_size.y - 32))
-	gui.SetNextWindowSize(desired, 0 if _layout_reset else FIRST_USE)
-	if _layout_reset or context.position == Vector2.ZERO:
-		context.position = Vector2(240 + index * 450, 16).clamp(Vector2(16, 16), (viewport_size - desired).max(Vector2(16, 16)))
+	var desired := Vector2(356, minf(376, viewport_size.y - 32))
+	if context.collapsed:
+		desired.y = 66
+	var resized: bool = context.get("display", viewport_size) != viewport_size
+	context["display"] = viewport_size
+	if _layout_reset or context.position == Vector2.ZERO or (resized and viewport_size.y < 544):
+		var initial := Vector2(24 + index * 376, _header_height + 36)
+		if viewport_size.y < initial.y + desired.y + 16:
+			initial = Vector2(viewport_size.x - desired.x - 16, 16)
+		context.position = initial.clamp(Vector2(16, 16), (viewport_size - desired).max(Vector2(16, 16)))
 		context.destination = context.position
 	context.fade = minf(1.0, context.fade + _delta * 8.0)
+	_move_panel(id, context, desired)
+	_skin.shadow(context.position, desired, context.fade)
 	gui.SetNextWindowPos(context.position)
+	gui.SetNextWindowSize(desired)
 	gui.SetNextWindowBgAlpha(panel_opacity * context.fade)
-	var expanded: bool = gui.Begin(context.title + "###devassistance_" + id, context.open, 4 | 256)
-	# Keep the whole window reachable, including its scrollbar, after resizing.
-	var window_size: Vector2 = gui.GetWindowSize()
-	var position: Vector2 = gui.GetWindowPos()
-	var available := (viewport_size - Vector2(32, 32)).max(Vector2(100, 60))
-	if expanded and (window_size.x > available.x or window_size.y > available.y):
-		window_size = window_size.min(available)
-		gui.SetWindowSize(window_size)
-	var mouse: Vector2 = gui.GetMousePos()
-	# Only the title bar starts a drag; sliders, tabs, close and collapse keep their input.
-	if gui.IsWindowHovered() and gui.IsMouseClicked(0) and mouse.y < position.y + gui.GetFrameHeight() and mouse.x > position.x + 30 and mouse.x < position.x + window_size.x - 30:
-		_drag_id = id
-		_drag_offset = mouse - position
-	if _drag_id == id:
-		context.destination = mouse - _drag_offset
-	var limit := (viewport_size - window_size).max(Vector2.ZERO)
-	context.destination = context.destination.clamp(Vector2.ZERO, limit)
-	context.position = context.position.lerp(context.destination, 1.0 if drag_response <= 0.0 else 1.0 - exp(-drag_response * _delta)).clamp(Vector2.ZERO, limit)
-	gui.SetWindowPos(context.position)
+	gui.Begin(context.title + "###devassistance_" + id, [], PANEL_FLAGS)
 	_glass_panel()
-	if expanded:
-		var target: Node = context.target.get_ref()
-		gui.TextDisabled(str(target.name))
-		_tip("Alvo: " + str(target.get_path()))
-		if gui.BeginTabBar("context_tabs"):
-			if gui.BeginTabItem("Ajustes"):
-				for field: Dictionary in context.fields:
-					_draw_field(id, target, field)
-				gui.EndTabItem()
-			if gui.BeginTabItem("Ações / presets"):
-				_draw_actions(id, context)
-				gui.EndTabItem()
-			if gui.BeginTabItem("Frame time"):
-				gui.TextWrapped("Tempo do frame em ms, amostrado a cada 0,1 s. Não é um profiler de CPU/GPU.")
-				if not _frame_times.is_empty():
-					gui.PlotLines("ms", _frame_times, _frame_times.size())
-				gui.EndTabItem()
-			gui.EndTabBar()
+	var target: Node = context.target.get_ref()
+	_skin.hit("drag", Vector2(8, 4), Vector2(270, 55), "Arraste para mover " + context.title)
+	_start_drag(id, context)
+	_skin.icon(Vector2(17, 18), context.get("heading_icon", context.icon))
+	_skin.text(Vector2(46, 17), context.title, 17, FigmaSkin.TEXT, 1)
+	_skin.text(Vector2(46, 41), str(target.name), 11, FigmaSkin.MUTED, 2)
+	if _skin.icon_button("watch", Vector2(290, 19), "pin", "Fixar / remover todos os parâmetros nas observações", _all_pinned(context)):
+		var pin := not _all_pinned(context)
+		for field: Dictionary in context.fields:
+			field.pinned = pin
+	if _skin.icon_button("collapse", Vector2(323, 19), "collapse", "Expandir" if context.collapsed else "Recolher"):
+		context.collapsed = not context.collapsed
+	if not context.collapsed:
+		_skin.box(Vector2(15, 66), Vector2(324, 1), FigmaSkin.BORDER, 0)
+		var groups: Array[String] = []
+		groups.assign(context.get("groups", []))
+		if groups.is_empty():
+			for field: Dictionary in context.fields:
+				if field.type != TYPE_BOOL and not field.has("group"):
+					groups.append("Ajustes")
+					break
+		for field: Dictionary in context.fields:
+			var group: String = field.get("group", "Sistemas" if field.type == TYPE_BOOL else "Ajustes")
+			if not groups.has(group):
+				groups.append(group)
+		if groups.is_empty():
+			groups.append("Ajustes")
+		groups.append("Ações")
+		if context.tab.is_empty():
+			context.tab = groups[0]
+		# Scrollable tabs preserve access when a generic context registers many groups.
+		gui.SetCursorPos(Vector2(17, 76))
+		gui.BeginChild("tabs", Vector2(322, 32), 0, 2048)
+		var tab_x := 0.0
+		for tab: String in groups:
+			var width: float = maxf(79.0, gui.CalcTextSize(tab).x + 10.0)
+			if _skin.hit("tab_" + tab, Vector2(tab_x, 0), Vector2(width, 28)):
+				context.tab = tab
+			_skin.text(Vector2(tab_x, 4), tab, 12, FigmaSkin.ACCENT if context.tab == tab else FigmaSkin.MUTED, 1 if context.tab == tab else 0)
+			if context.tab == tab:
+				_skin.box(Vector2(tab_x, 27), Vector2(width, 2), FigmaSkin.ACCENT, 0)
+			tab_x += width + 25
+		gui.EndChild()
+		gui.SetCursorPos(Vector2(17, 117))
+		gui.BeginChild("content", Vector2(332, desired.y - 176))
+		if context.tab == "Ações":
+			_draw_actions(id, context)
+
+		else:
+			var row := 0
+			for field: Dictionary in context.fields:
+				if field.get("group", "Sistemas" if field.type == TYPE_BOOL else "Ajustes") == context.tab:
+					_draw_field(id, target, field, row * 67.0)
+					row += 1
+			gui.SetCursorPos(Vector2(0, row * 67.0))
+			gui.Dummy(Vector2(1, 1))
+		gui.EndChild()
+		_draw_footer(id, context, desired.y)
 	gui.End()
 
 
-func _draw_field(id: String, target: Node, field: Dictionary) -> void:
+func _all_pinned(context: Dictionary) -> bool:
+	if context.fields.is_empty():
+		return false
+	for field: Dictionary in context.fields:
+		if not field.pinned:
+			return false
+	return true
+
+
+func _draw_field(id: String, target: Node, field: Dictionary, y: float) -> void:
 	gui.PushID(id + ":" + field.property)
 	var value := [target.get(field.property)]
-	var changed := false
 	if field.type == TYPE_BOOL:
-		changed = gui.Checkbox(field.label, value)
+		_skin.text(Vector2(0, y + 12), field.label)
+		var caption: String = field.get("caption", field.description)
+		# Full descriptions remain available on hover; keep each row a predictable height.
+		if caption.length() > 43:
+			caption = caption.left(40) + "…"
+		_skin.text(Vector2(0, y + 34), caption, 11, FigmaSkin.MUTED)
+		if _skin.hit("toggle", Vector2(281, y + 10), Vector2(44, 29), field.description):
+			set_parameter(id, field.property, not value[0])
+		_skin.box(Vector2(286, y + 15), Vector2(34, 19), FigmaSkin.ACCENT if value[0] else Color("3a4255"), 10)
+		_skin.circle(Vector2(308 if value[0] else 295, y + 24.5), 6.5, Color("151923") if value[0] else Color("bec6d6"))
 	else:
-		gui.Text(field.label)
+		_skin.text(Vector2(0, y + 5), field.label)
+		gui.SetCursorPos(Vector2(195, y))
+		gui.SetNextItemWidth(103)
+		if _skin.fonts.size() >= 3:
+			gui.PushFont(_skin.fonts[2])
+		var fmt := "%.0f" if field.type == TYPE_INT else "%.2f"
+		if field.has("unit"):
+			fmt += " " + field.unit.replace("%", "%%")
+		if gui.InputDoubleEx("##number", value, 0, 0, fmt):
+			set_parameter(id, field.property, value[0])
 		_tip(field.description)
-		gui.SetNextItemWidth(-1.0)
-		if field.type == TYPE_INT:
-			changed = gui.SliderInt("##value", value, int(field.min), int(field.max))
-		else:
-			changed = gui.SliderFloat("##value", value, float(field.min), float(field.max))
-	_tip(field.description + "\nCtrl+clique no slider: digitar valor.")
-	if changed:
-		set_parameter(id, field.property, value[0])
-	if gui.SmallButton("Fixado" if field.pinned else "Fixar"):
+		if _skin.fonts.size() >= 3:
+			gui.PopFont()
+		if _skin.icon_button("reset", Vector2(308, y + 6), "reset", "Restaurar valor inicial"):
+			set_parameter(id, field.property, field.initial)
+		_skin.hit("slider", Vector2(0, y + 29), Vector2(298, 22), field.description + "\nClique no número para digitar.")
+		var fraction := inverse_lerp(float(field.min), float(field.max), float(target.get(field.property))) if field.max != field.min else 0.0
+		if gui.IsItemActive() and gui.IsMouseDown(0):
+			fraction = clampf((gui.GetMousePos().x - gui.GetWindowPos().x) / 298.0, 0, 1)
+			set_parameter(id, field.property, lerpf(field.min, field.max, fraction))
+		elif gui.IsItemFocused():
+			var direction := int(Input.is_physical_key_pressed(KEY_RIGHT)) - int(Input.is_physical_key_pressed(KEY_LEFT))
+			if direction != 0:
+				set_parameter(id, field.property, float(value[0]) + direction * maxf(1.0 if field.type == TYPE_INT else 0.01, (field.max - field.min) * _delta * 0.25))
+		_skin.box(Vector2(0, y + 39), Vector2(298, 3), Color("3a4255"), 2)
+		_skin.box(Vector2(0, y + 39), Vector2(298 * fraction, 3), FigmaSkin.ACCENT, 2)
+		_skin.circle(Vector2(298 * fraction, y + 40.5), 6.5, FigmaSkin.ACCENT)
+	# Per-field tools live on the label, leaving the Figma slider and switch uncluttered.
+	if _skin.hit("label", Vector2(0, y), Vector2(188, 28), field.description + "\nClique para fixar/remover das observações. Botão direito para restaurar."):
 		field.pinned = not field.pinned
-	_tip("Mostrar este valor mesmo com o menu oculto. Clique novamente para remover.")
-	gui.SameLine()
-	if gui.SmallButton("Restaurar"):
+	if gui.IsItemHovered() and gui.IsMouseClicked(1):
 		set_parameter(id, field.property, field.initial)
-	_tip("Recuperar o valor inicial deste parâmetro.")
-	gui.Separator()
+	if field.pinned:
+		_skin.circle(Vector2(184, y + 12), 2, FigmaSkin.ACCENT)
 	gui.PopID()
+
+
+func _draw_footer(id: String, context: Dictionary, height: float) -> void:
+	var y := height - 45.0
+	_skin.box(Vector2(15, height - 59), Vector2(324, 1), FigmaSkin.BORDER, 0)
+	if _skin.button("presets", Vector2(17, y), Vector2(195, 29), "Preset: " + String(context.preset).left(21)):
+		gui.OpenPopup("preset_list")
+	_skin.icon(Vector2(183, y + 6), _skin.icons.chevron)
+	if _skin.begin_popup("preset_list"):
+		if gui.Selectable("Padrão"):
+			reset_parameters(id)
+			context.preset = "Padrão"
+		for preset: String in _presets.get_section_keys(id) if _presets.has_section(id) else []:
+			if gui.Selectable(preset):
+				load_preset(id, preset)
+				context.preset = preset
+		gui.EndPopup()
+	if _skin.button("save", Vector2(224, y), Vector2(113, 29), "Salvar preset", true):
+		gui.OpenPopup("save_preset")
+	if _skin.begin_popup("save_preset"):
+		gui.Text("Nome do preset")
+		gui.SetNextItemWidth(240)
+		if gui.IsWindowAppearing():
+			gui.SetKeyboardFocusHere()
+		gui.InputText("##name", context.preset_name, 64)
+		if gui.Button("Salvar / substituir"):
+			if save_preset(id, context.preset_name[0]) == OK:
+				context.preset = context.preset_name[0].strip_edges()
+				gui.CloseCurrentPopup()
+		if not _message.is_empty():
+			gui.TextWrapped(_message)
+		gui.EndPopup()
 
 
 func _tip(description: String) -> void:
 	if gui.IsItemHovered():
-		gui.SetTooltip(description)
+		_skin.tooltip(description)
 
 
 func _draw_actions(id: String, context: Dictionary) -> void:
@@ -344,15 +450,7 @@ func _draw_actions(id: String, context: Dictionary) -> void:
 	gui.SeparatorText("Parâmetros")
 	if gui.Button("Restaurar parâmetros iniciais"):
 		reset_parameters(id)
-	gui.InputText("Nome do preset", context.preset_name, 64)
-	if gui.Button("Salvar / substituir preset"):
-		save_preset(id, context.preset_name[0])
-	for preset: String in _presets.get_section_keys(id) if _presets.has_section(id) else []:
-		if gui.Button("Aplicar: " + preset):
-			load_preset(id, preset)
-	if not _message.is_empty():
-		gui.TextWrapped(_message)
-	gui.TextWrapped("Presets guardam parâmetros, não o estado completo da simulação.")
+	gui.TextWrapped("Presets de parâmetros estão no rodapé. Não salvam o estado completo da simulação.")
 
 
 func _draw_watches() -> void:
