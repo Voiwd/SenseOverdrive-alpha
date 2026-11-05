@@ -26,6 +26,9 @@ const FigmaSkin := preload("res://addons/dev_assistance/figma_skin.gd")
 const WATCH_FLAGS := 1 | 64 | 256 | 512 # NoTitleBar, AutoResize, NoSavedSettings, NoMouseInputs.
 
 var contexts: Dictionary = {}
+var _utilities: Dictionary = {}
+var _query := [""]
+var _wheel_page := 0
 var tools_visible := false
 var suspended := false
 var gui: Object
@@ -72,6 +75,9 @@ func _ready() -> void:
 	gui = Engine.get_singleton("ImGuiAPI")
 	_skin = FigmaSkin.new(gui)
 	_skin.configure()
+	for tool in [["scene_browser", "Scene Browser"], ["screen_space", "ScreenSpace"], ["profiler", "Profiler"]]:
+		_utilities[tool[0]] = {"title": tool[1], "icon": load(FigmaSkin.ICON_PATH + tool[0] + ".svg"),
+			"position": Vector2.ZERO, "destination": Vector2.ZERO, "fade": 0.0, "open": [false], "collapsed": false}
 	_glass = CanvasLayer.new()
 	_glass.layer = 127 # Immediately below the configured ImGui layer (128).
 	add_child(_glass)
@@ -105,6 +111,10 @@ func register_context(id: String, title: String, icon: Texture2D, target: Node,
 		field["initial"] = value
 		field["type"] = typeof(value)
 		field["pinned"] = false
+		field["shown"] = true
+		field["fired_at"] = -1
+		if field.has("anchor"):
+			field.anchor = weakref(field.anchor)
 		fields.append(field)
 	contexts[id] = {"title": title, "icon": icon, "target": weakref(target),
 		"fields": fields, "actions": actions, "position": Vector2.ZERO, "destination": Vector2.ZERO, "fade": 0.0, "open": [false], "preset_name": ["Meu preset"], "preset": "Padrão", "tab": "", "collapsed": false}
@@ -181,6 +191,10 @@ func _process(delta: float) -> void:
 			if context.open[0]:
 				_draw_context(id, context, index)
 			index += 1
+		for tool: String in _utilities:
+			if _utilities[tool].open[0]:
+				_draw_context(tool, _utilities[tool], index)
+			index += 1
 		_layout_reset = false
 		_opening = false
 	_draw_watches()
@@ -193,7 +207,7 @@ func _process(delta: float) -> void:
 
 
 func _draw_header() -> void:
-	_header_height = 68.0 + ceilf(maxi(1, contexts.size()) / 4.0) * 48.0
+	_header_height = 68.0 + ceilf(maxi(1, contexts.size() + _utilities.size()) / 4.0) * 48.0
 	var size := Vector2(356, _header_height)
 	if _layout_reset:
 		_header.position = Vector2(24, 16)
@@ -211,10 +225,10 @@ func _draw_header() -> void:
 		_drag_id = ""
 		_header.position = Vector2(24, 16)
 		_header.destination = _header.position
-		for context: Dictionary in contexts.values():
+		for context: Dictionary in contexts.values() + _utilities.values():
 			context.position = Vector2.ZERO
 	_skin.icon(Vector2(11, 11), _skin.icons.drag)
-	_skin.text(Vector2(37, 12), "DevAssistance", 16, FigmaSkin.TEXT, 1)
+	_skin.text(Vector2(37, 12), "DevAsis", 16, FigmaSkin.TEXT, 1)
 	_skin.box(Vector2(212, 12), Vector2(101, 22), FigmaSkin.SURFACE)
 	var shortcut := toggle_shortcut.get_as_text() if toggle_shortcut != null else "Sem atalho"
 	_skin.text(Vector2(221, 17), shortcut, 10, FigmaSkin.MUTED, 2)
@@ -222,19 +236,20 @@ func _draw_header() -> void:
 		set_tools_visible(false)
 	_skin.box(Vector2(13, 45), Vector2(328, 1), FigmaSkin.BORDER, 0)
 	var index := 0
-	for id: String in contexts:
-		var context: Dictionary = contexts[id]
-		var at := Vector2(13 + index % 4 * 84, 57 + index / 4 * 48)
-		if _skin.hit("menu_" + id, at, Vector2(76, 42), "Abrir / recolher " + context.title):
-			context.open[0] = not context.open[0]
-		_skin.box(at, Vector2(76, 42), FigmaSkin.ACTIVE if context.open[0] else (FigmaSkin.SURFACE.lightened(0.08) if gui.IsItemHovered() else Color("202532")), 8, Color("8c77b6") if context.open[0] else Color.TRANSPARENT)
-		if context.icon != null:
-			_skin.icon(at + (Vector2(76, 42) - context.icon.get_size()) * 0.5, context.icon)
-		else:
-			_skin.text(at + Vector2(23, 13), context.title.left(3), 12)
-		if context.open[0]:
-			_skin.box(at + Vector2(34, 36), Vector2(8, 2), FigmaSkin.ACCENT, 1)
-		index += 1
+	for collection: Dictionary in [contexts, _utilities]:
+		for id: String in collection:
+			var context: Dictionary = collection[id]
+			var at := Vector2(13 + index % 4 * 84, 57 + index / 4 * 48)
+			if _skin.hit("menu_" + id, at, Vector2(76, 42), "Abrir / recolher " + context.title):
+				context.open[0] = not context.open[0]
+			_skin.box(at, Vector2(76, 42), FigmaSkin.ACTIVE if context.open[0] else (FigmaSkin.SURFACE.lightened(0.08) if gui.IsItemHovered() else Color("202532")), 8, Color("8c77b6") if context.open[0] else Color.TRANSPARENT)
+			if context.icon != null:
+				_skin.icon(at + (Vector2(76, 42) - context.icon.get_size()) * 0.5, context.icon)
+			else:
+				_skin.text(at + Vector2(23, 13), context.title.left(3), 12)
+			if context.open[0]:
+				_skin.box(at + Vector2(34, 36), Vector2(8, 2), FigmaSkin.ACCENT, 1)
+			index += 1
 	_glass_panel()
 	gui.End()
 
@@ -281,22 +296,41 @@ func _draw_context(id: String, context: Dictionary, index: int) -> void:
 	gui.SetNextWindowPos(context.position)
 	gui.SetNextWindowSize(desired)
 	gui.SetNextWindowBgAlpha(panel_opacity * context.fade)
-	gui.Begin(context.title + "###devassistance_" + id, [], PANEL_FLAGS)
+	if context.get("focus_next", false):
+		gui.SetNextWindowFocus()
+		context.focus_next = false
+	gui.Begin(context.title + ("###props_" if context.has("target") else "###tool_") + id, [], PANEL_FLAGS)
 	_glass_panel()
-	var target: Node = context.target.get_ref()
+	var target: Node = context.target.get_ref() if context.has("target") else null
 	_skin.hit("drag", Vector2(8, 4), Vector2(270, 55), "Arraste para mover " + context.title)
 	_start_drag(id, context)
 	_skin.icon(Vector2(17, 18), context.get("heading_icon", context.icon))
 	_skin.text(Vector2(46, 17), context.title, 17, FigmaSkin.TEXT, 1)
-	_skin.text(Vector2(46, 41), str(target.name), 11, FigmaSkin.MUTED, 2)
-	if _skin.icon_button("watch", Vector2(290, 19), "pin", "Fixar / remover todos os parâmetros nas observações", _all_pinned(context)):
+	_skin.text(Vector2(46, 41), str(target.name) if target else "DevAsis", 11, FigmaSkin.MUTED, 2)
+	if target and _skin.icon_button("watch", Vector2(290, 19), "pin", "Fixar / remover todos os parâmetros nas observações", _all_pinned(context)):
 		var pin := not _all_pinned(context)
 		for field: Dictionary in context.fields:
 			field.pinned = pin
+			field.shown = true
 	if _skin.icon_button("collapse", Vector2(323, 19), "collapse", "Expandir" if context.collapsed else "Recolher"):
 		context.collapsed = not context.collapsed
 	if not context.collapsed:
 		_skin.box(Vector2(15, 66), Vector2(324, 1), FigmaSkin.BORDER, 0)
+		if target == null:
+			gui.SetCursorPos(Vector2(16, 80))
+			gui.BeginChild("utility", desired - Vector2(32, 96))
+			match id:
+				"scene_browser": _draw_browser()
+				"screen_space": _draw_wheel()
+				"profiler":
+					gui.Text("FPS: %d" % Engine.get_frames_per_second())
+					gui.Text("Frame: %.2f ms" % (_delta * 1000.0))
+					gui.Text("Memória estática: %.1f MiB" % (OS.get_static_memory_usage() / 1048576.0))
+					if not _frame_times.is_empty():
+						gui.PlotLinesEx("##ms", _frame_times, _frame_times.size(), 0, "Frame time (ms)", 0, maxf(33.3, _frame_times.max()), Vector2(300, 64))
+			gui.EndChild()
+			gui.End()
+			return
 		var groups: Array[String] = []
 		groups.assign(context.get("groups", []))
 		if groups.is_empty():
@@ -396,10 +430,20 @@ func _draw_field(id: String, target: Node, field: Dictionary, y: float) -> void:
 		_skin.box(Vector2(0, y + 39), Vector2(298 * fraction, 3), FigmaSkin.ACCENT, 2)
 		_skin.circle(Vector2(298 * fraction, y + 40.5), 6.5, FigmaSkin.ACCENT)
 	# Per-field tools live on the label, leaving the Figma slider and switch uncluttered.
-	if _skin.hit("label", Vector2(0, y), Vector2(188, 28), field.description + "\nClique para fixar/remover das observações. Botão direito para restaurar."):
+	if _skin.hit("label", Vector2(0, y), Vector2(188, 28), field.description + "\nClique para fixar/remover das observações. Botão direito para opções."):
 		field.pinned = not field.pinned
+		field.shown = true
 	if gui.IsItemHovered() and gui.IsMouseClicked(1):
-		set_parameter(id, field.property, field.initial)
+		gui.OpenPopup("field_options")
+	if _skin.begin_popup("field_options"):
+		if gui.Selectable("Remover do ScreenSpace" if field.pinned else "Marcar para ScreenSpace"):
+			field.pinned = not field.pinned
+			field.shown = true
+		if gui.Selectable("Restaurar valor inicial"):
+			set_parameter(id, field.property, field.initial)
+		if field.pinned and gui.Selectable("Ocultar observação" if field.shown else "Mostrar observação"):
+			field.shown = not field.shown
+		gui.EndPopup()
 	if field.pinned:
 		_skin.circle(Vector2(184, y + 12), 2, FigmaSkin.ACCENT)
 	gui.PopID()
@@ -453,15 +497,107 @@ func _draw_actions(id: String, context: Dictionary) -> void:
 	gui.TextWrapped("Presets de parâmetros estão no rodapé. Não salvam o estado completo da simulação.")
 
 
+func _draw_browser() -> void:
+	gui.SetNextItemWidth(300)
+	gui.InputTextWithHint("##Buscar", "Buscar objeto ou contexto…", _query, 128)
+	_tip("Buscar por objeto, contexto ou caminho")
+	var count := 0
+	for id: String in contexts:
+		var ctx: Dictionary = contexts[id]
+		var target: Node = ctx.target.get_ref()
+		if not is_instance_valid(target) or not target.is_inside_tree():
+			continue
+		var path := str(target.get_path())
+		var label := "%s · %s" % [target.name, ctx.title]
+		if not (label + path + id).containsn(str(_query[0]).strip_edges()):
+			continue
+		count += 1
+		if gui.Selectable(label + "###result_" + id):
+			ctx.open[0] = true
+			ctx.collapsed = false
+			ctx.focus_next = true
+			_utilities.scene_browser.open[0] = false
+		_tip(path)
+	if count == 0:
+		gui.TextWrapped("Nenhum alvo registrado corresponde à busca.")
+
+
+func _draw_wheel() -> void:
+	var items: Array = []
+	for ctx: Dictionary in contexts.values():
+		for field: Dictionary in ctx.fields:
+			if field.pinned:
+				items.append([ctx.title, field])
+	if items.is_empty():
+		gui.TextWrapped("Clique no nome de um parâmetro para adicioná-lo ao ScreenSpace.")
+		return
+	var pages := ceili(items.size() / 6.0)
+	_wheel_page = clampi(_wheel_page, 0, pages - 1)
+	var first := 6 * _wheel_page
+	var count := mini(6, items.size() - first)
+	var selected := ""
+	for offset in count:
+		var field: Dictionary = items[first + offset][1]
+		var at := Vector2(154, 97) + Vector2.UP.rotated(TAU * offset / count) * Vector2(112, 69)
+		var label := "%s / %s" % [items[first + offset][0], field.label]
+		if _skin.hit("watch_%d" % offset, at - Vector2(48, 15), Vector2(96, 30), label):
+			field.shown = not field.shown
+		if gui.IsItemHovered() or gui.IsItemFocused():
+			selected = label
+		_skin.box(at - Vector2(48, 15), Vector2(96, 30), FigmaSkin.ACTIVE if field.shown else FigmaSkin.SURFACE, 12)
+		var caption := str(field.label)
+		if caption.length() > 12:
+			caption = caption.left(11) + "…"
+		_skin.text(at - Vector2(42, 7), caption, 11, FigmaSkin.ACCENT if field.shown else FigmaSkin.MUTED)
+	gui.SetCursorPos(Vector2(0, 198))
+	gui.TextWrapped(selected if selected else "Selecione um valor para mostrar ou ocultar.")
+	if pages > 1 and gui.Button("Página %d/%d  >" % [_wheel_page + 1, pages]):
+		_wheel_page = (_wheel_page + 1) % pages
+
+
+## Call from a game signal to show a registered FireSignal watch for its fade duration.
+func fire_watch(id: String, property: String) -> void:
+	if contexts.has(id):
+		for field: Dictionary in contexts[id].fields:
+			if field.property == property:
+				field.fired_at = Time.get_ticks_msec()
+
+
 func _draw_watches() -> void:
 	var lines: Array[String] = []
+	var alphas: Array[float] = []
+	var anchor_rows := {}
 	for context: Dictionary in contexts.values():
 		var target: Node = context.target.get_ref()
 		if not is_instance_valid(target):
 			continue
 		for field: Dictionary in context.fields:
-			if field.pinned:
-				lines.append("%s / %s: %s" % [context.title, field.label, target.get(field.property)])
+			if not field.pinned or not field.shown:
+				continue
+			var line := "%s / %s: %s" % [context.title, field.label, target.get(field.property)]
+			var opacity := 1.0
+			if field.has("fade_seconds"):
+				opacity = 1.0 - (Time.get_ticks_msec() - int(field.fired_at)) / (1000.0 * maxf(0.01, field.fade_seconds))
+				if field.fired_at < 0 or opacity <= 0:
+					continue
+			if field.has("anchor"):
+				var anchor: Node3D = field.anchor.get_ref()
+				if not is_instance_valid(anchor) or not anchor.is_inside_tree() or anchor.get_viewport() != get_viewport():
+					continue
+				var cam := get_viewport().get_camera_3d()
+				if not cam or not cam.is_position_in_frustum(anchor.global_position):
+					continue
+				var pos := cam.unproject_position(anchor.global_position) / get_viewport().get_visible_rect().size * Vector2(gui.GetIO().DisplaySize)
+				pos.y += anchor_rows.get(anchor, 0) * gui.GetTextLineHeightWithSpacing()
+				anchor_rows[anchor] = anchor_rows.get(anchor, 0) + 1
+				gui.SetNextWindowPos(pos)
+				gui.SetNextWindowBgAlpha(panel_opacity * opacity)
+				gui.Begin("###anchor_%d_%s_%s" % [target.get_instance_id(), context.title, field.property], [], WATCH_FLAGS)
+				gui.TextColored(Color(1, 1, 1, opacity), line)
+				gui.End()
+			else:
+				lines.append(line)
+				alphas.append(opacity)
 	if lines.is_empty():
 		return
 	var window_size: Vector2 = gui.GetIO().DisplaySize
@@ -473,8 +609,8 @@ func _draw_watches() -> void:
 	gui.SetNextWindowPos((window_size - extent - Vector2(12, 12)).max(Vector2.ZERO))
 	gui.SetNextWindowBgAlpha(panel_opacity)
 	gui.Begin("Observações##devassistance", [], WATCH_FLAGS)
-	for line: String in lines:
-		gui.Text(line)
+	for i in lines.size():
+		gui.TextColored(Color(1, 1, 1, alphas[i]), lines[i])
 	# Use measured padding on the next frame, before ImGui emits the window's vertices.
 	_watch_size = gui.GetWindowSize()
 	_glass_panel()

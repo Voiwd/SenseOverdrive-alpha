@@ -71,7 +71,7 @@ func _run() -> void:
 	handler.set("_presets", ConfigFile.new())
 	var context: Dictionary = handler.contexts["preview.player"]
 	var origin: Vector2 = context.position
-	_check(handler.contexts.size() == 8, "Eight demonstration cards registered")
+	_check(handler.contexts.size() + handler._utilities.size() == 8, "Eight demonstration cards registered")
 	_check(origin == Vector2(24, 200), "Figma panel placement")
 	await _mouse(Vector2(850, 630))
 	await RenderingServer.frame_post_draw

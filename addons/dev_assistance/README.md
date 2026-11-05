@@ -1,23 +1,31 @@
-# DevAssistance 0.2
+# DevAsis 0.3
 
 Ferramentas contextuais para ajustar e observar experimentos durante a execução. A primeira integração é o teste visual existente; a interface usa Dear ImGui e os menus só existem enquanto seus alvos estão na árvore.
 
 ## Testar agora
 
-1. Abra `res://debug/visual/visual_debug.tscn` e pressione **F6**. Também pode usar **Project → Tools → DevAssistance: executar cena atual**.
+1. Abra `res://debug/visual/visual_debug.tscn` e pressione **F6**. Também pode usar **Project → Tools → DevAsis: executar cena atual**.
 2. No cabeçalho, o ícone da **paleta** abre/fecha o menu Visual; o **frasco** abre/fecha Experimento. Passe o mouse para ler os nomes.
 3. Arraste a barra de título para mover um menu. O traço recolhe seu conteúdo; o ícone no cabeçalho fecha o menu. O ícone no cabeçalho permite reabri-lo. É possível abrir os dois juntos.
 4. Em **Ajustes**, altere sliders ou clique no campo numérico para digitar. **Sistemas** reúne as chaves booleanas. Os limites também são aplicados à entrada numérica e aos presets. Passe o mouse para ler a descrição; O ícone de restauração recupera o valor inicial daquele parâmetro.
-5. Clique no nome do parâmetro para fixá-lo, ou no alfinete do painel para fixar todos. Botão direito no nome restaura o valor inicial. Use a fixação para acompanhar um valor fora do menu. As observações continuam visíveis quando as ferramentas são ocultadas e não capturam cliques.
+5. Clique no nome do parâmetro para fixá-lo, ou no alfinete do painel para fixar todos. Botão direito no nome abre as opções de fixar, ocultar a observação ou restaurar o valor inicial. Use a fixação para acompanhar um valor fora do menu. As observações continuam visíveis quando as ferramentas são ocultadas e não capturam cliques.
 6. Use **Ctrl+Alt+D** para ocultar/reabrir as ferramentas e dê duplo clique no cabeçalho para recuperar o posicionamento. O layout e as seleções de observação duram somente nesta execução.
 
 Os menus usam rolagem e são limitados às dimensões da janela, independentemente da escala do viewport 3D. O guia considera janelas de pelo menos **640×360**.
+
+## Scene Browser e ScreenSpace
+
+No **Scene Browser**, digite `Character` e selecione o resultado para abrir as propriedades do personagem. A busca considera nome, caminho, contexto e ID; apenas alvos registrados aparecem. Cada resultado abre o mesmo painel editável do cabeçalho, com os mesmos presets e ações.
+
+Fixe **LocalPlayer → Caminhada**: o rótulo acompanha o personagem enquanto estiver no enquadramento. Fixe **Experimento → Órbita**, oculte o menu com **Ctrl+Alt+D** e pressione **F4**: o aviso mostra o novo estado e desaparece. Ajuste a duração em **Remote → VisualDebug → Orbit Notice Seconds**. Os demais campos usam uma lista fixa no canto da tela. No **ScreenSpace**, cada botão do menu radial alterna a visibilidade de uma observação sem removê-la; há paginação acima de seis itens.
+
+Na integração, cada campo pode receber `anchor: Node3D` para projetar a posição do nó na tela e/ou `fade_seconds: float` para aparecer só depois de um evento. Conecte o sinal do jogo a `tools.fire_watch.bind(id, property)` se o sinal não tiver argumentos, ou invoque `fire_watch` a partir do callback. Sem essas opções, o campo fixado permanece visível.
 
 ## Presets, ações e câmera
 
 Na aba **Ações**, cada menu oferece suas ações. O rodapé contém o seletor de presets e **Salvar preset**. Informe um nome e use **Salvar / substituir preset**. Os botões **Aplicar** recuperam os valores salvos em `user://devassistance/presets.cfg`, separados pelo identificador do contexto. Salvar o mesmo nome substitui aquele preset. Os arquivos do projeto não são alterados.
 
-Presets guardam parâmetros registrados; não salvam o estado completo do mundo, o layout ou o posicionamento do personagem. **Reiniciar experimento**, no menu Experimento, restaura os parâmetros iniciais, a posição do personagem, comparações e câmera. O gráfico **Frame time**, na aba Ações, mostra o tempo do frame em ms amostrado a cada 0,1 s, com até 120 amostras; ela não substitui o profiler da Godot.
+Presets guardam parâmetros registrados; não salvam o estado completo do mundo, o layout ou o posicionamento do personagem. **Reiniciar experimento**, no menu Experimento, restaura os parâmetros iniciais, a posição do personagem, comparações e câmera. O gráfico **Frame time**, no Profiler, mostra o tempo do frame em ms amostrado a cada 0,1 s, com até 120 amostras; ela não substitui o profiler da Godot.
 
 As comparações **F1–F4** e **Home** continuam disponíveis. **Controlar personagem** fecha as ferramentas e captura o mouse. Abrir com Ctrl+Alt+D libera o mouse e bloqueia apenas os comandos locais; gravidade, física e atualizações visuais continuam. Fechar retoma seu controle. Esc continua liberando o mouse conforme o controlador existente. Home volta à câmera de órbita.
 
@@ -86,7 +94,7 @@ Câmera livre, seleção espacial, gizmos, visualizações físicas, módulos de
 
 Interface baseada no frame **Context Handler · Overlay (3:2)** do [DevAssistance Design](https://www.figma.com/design/CJE6FhvUOe39HZmyuHdzjq/DevAssistance-Design?node-id=3-2). Painéis de 356 px, raio de 14 px, destaque lilás, Nunito Regular/Bold e IBM Plex Mono. Os SVGs originais exportados estão em `icons/figma/`, preservados nas dimensões originais. As fontes adicionais vêm de google/fonts, sob SIL OFL (licenças em `fonts/`). A apresentação permanece em Dear ImGui; primitivas visuais ficam em `figma_skin.gd`.
 
-Para comparar diretamente o desenho, abra **`res://debug/visual/dev_assistance_design_preview.tscn` com F6**. Os oito cartões e os valores de LocalPlayer são demonstrações de interface; os sistemas correspondentes não foram implementados. Seus presets usam `user://devassistance/design_preview.cfg`. A integração real continua em `visual_debug.tscn`, com Visual e Experimento.
+Para comparar diretamente o desenho, abra **`res://debug/visual/dev_assistance_design_preview.tscn` com F6**. Os valores de LocalPlayer nessa cena são fictícios. Scene Browser, ScreenSpace e Profiler usam as ferramentas reais. Seus presets usam `user://devassistance/design_preview.cfg`. A integração real continua em `visual_debug.tscn`, com Visual, Experimento e LocalPlayer.
 
 O cabeçalho adapta o número de linhas aos contextos registrados. Em janelas baixas o painel começa à direita, com rolagem interna. Cabeçalho e painéis têm arraste suavizado. Tab/Enter permitem navegar e confirmar o diálogo de presets.
 

@@ -29,11 +29,8 @@ func _ready() -> void:
 	ui.contexts["preview.player"].heading_icon = load(DevAssistance.FigmaSkin.ICON_PATH + "player_heading.svg")
 	ui.contexts["preview.player"].groups = ["Movimento", "Sistemas"]
 	ui.contexts["preview.player"].open[0] = true
-	for entry in [["Visual", "visual"], ["Experimento", "experiment"], ["Profiler", "profiler"],
-		["SceneBrowser", "scene_browser"], ["ScreenSpace", "screen_space"], ["Network", "network"], ["Navigator", "navigator"]]:
-		ui.register_context("preview." + entry[1], entry[0], load(DevAssistance.FigmaSkin.ICON_PATH + entry[1] + ".svg"), self, [], [
-			{"label": "Apenas demonstração de layout", "description": "Este contexto não implementa um sistema do jogo.", "callback": func(): pass},
-		])
+	for entry in [["Visual", "visual"], ["Experimento", "experiment"], ["Network", "network"], ["Navigator", "navigator"]]:
+		ui.register_context("preview." + entry[1], entry[0], load(DevAssistance.FigmaSkin.ICON_PATH + entry[1] + ".svg"), self, [])
 	var background := ColorRect.new()
 	background.color = Color("1d1d1d")
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE

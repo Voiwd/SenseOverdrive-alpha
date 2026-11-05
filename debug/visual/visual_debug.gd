@@ -1,6 +1,8 @@
 extends Node3D
 ## F6: direct A/B inspection, independent material/shadow comparisons and repeatable capture.
 
+signal orbit_changed
+
 const BEFORE_SHADER := preload("res://debug/visual/reference/blocks_before_sen5.gdshader")
 @onready var room: Node3D = $Room
 @onready var post: CanvasLayer = $Room/WorldPostProcess
@@ -23,7 +25,20 @@ var original_materials := false:
 		original_materials = value
 		if is_node_ready():
 			_apply_comparison()
-var moving := false
+## Liga a órbita da câmera de teste; F4 alterna e dispara o aviso do ScreenSpace.
+@export var moving := false:
+	set(value):
+		if moving != value:
+			moving = value
+			orbit_changed.emit()
+## Duração do aviso de órbita, em segundos. Aumente para ler por mais tempo.
+@export_range(0.1, 10.0, 0.1) var orbit_notice_seconds := 2.0:
+	set(value):
+		orbit_notice_seconds = value
+		if ui and ui.contexts.has("visual.experiment"):
+			for field: Dictionary in ui.contexts["visual.experiment"].fields:
+				if field.property == "moving":
+					field.fade_seconds = value
 var angle := 0.0
 var ui: DevAssistance
 var player_view := false
@@ -124,7 +139,7 @@ func _build_ui() -> void:
 	ui.register_context("visual.experiment", "Experimento", preload("res://addons/dev_assistance/icons/figma/experiment.svg"), self, [
 		_field("original_shadows", "Sombras originais (F2)", "Compara alcance original de 100 m com o corrigido de 30 m."),
 		_field("original_materials", "Material original (F3)", "Alterna o material de referência e o material corrigido."),
-		_field("moving", "Órbita (F4)", "Gira a câmera ao redor da sala durante a comparação."),
+		_field("moving", "Órbita (F4)", "Gira a câmera ao redor da sala durante a comparação.").merged({"fade_seconds": orbit_notice_seconds}),
 	], [
 		_action("Reiniciar experimento", "Restaura parâmetros, comparações e câmera inicial.", _reset_experiment),
 		_action("Câmera inicial (Home)", "Volta à vista de órbita e desativa o controle do personagem.", _reset_camera),
@@ -134,6 +149,11 @@ func _build_ui() -> void:
 		_action("Janela 800 x 600", "Verificar acesso aos controles em uma janela menor.", func(): get_window().size = Vector2i(800, 600)),
 		_action("Medir e capturar A/B", "Oculta as ferramentas, desliga VSync e mede as comparações. Resultados: user://sen5/.", benchmark),
 	])
+	ui.register_context("visual.player", "LocalPlayer", preload("res://addons/dev_assistance/icons/figma/player.svg"), player, [
+		_field("walk_speed", "Caminhada", "Velocidade ao andar, em m/s.", 0, 20).merged({"anchor": player, "unit": "m/s"}),
+		_field("sprint_speed", "Corrida", "Velocidade ao correr, em m/s.", 0, 20),
+	])
+	orbit_changed.connect(ui.fire_watch.bind("visual.experiment", "moving"))
 	ui.contexts["visual.filters"].open[0] = true
 
 
@@ -153,6 +173,7 @@ func _tools_visibility_changed(open: bool) -> void:
 func _reset_experiment() -> void:
 	ui.reset_parameters("visual.filters")
 	ui.reset_parameters("visual.experiment")
+	ui.reset_parameters("visual.player")
 	player.transform = _initial_player_transform
 	player.velocity = Vector3.ZERO
 	player.camera_yaw.rotation = _initial_yaw

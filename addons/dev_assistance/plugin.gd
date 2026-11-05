@@ -3,11 +3,11 @@ extends EditorPlugin
 
 
 func _enter_tree() -> void:
-	add_tool_menu_item("DevAssistance: executar cena atual", _run_current)
+	add_tool_menu_item("DevAsis: executar cena atual", _run_current)
 
 
 func _exit_tree() -> void:
-	remove_tool_menu_item("DevAssistance: executar cena atual")
+	remove_tool_menu_item("DevAsis: executar cena atual")
 
 
 func _run_current() -> void:

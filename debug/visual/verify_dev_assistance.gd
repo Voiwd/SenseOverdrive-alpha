@@ -24,7 +24,7 @@ func _run() -> void:
 	current_scene = scene
 	await process_frame
 	var handler: DevAssistance = scene.ui
-	_check(handler.contexts.size() == 2, "Visual and experiment menus registered")
+	_check(handler.contexts.size() == 3, "Visual, experiment and local player registered")
 	_check(handler.set_parameter("visual.filters", "contrast", 99.0), "Set numeric parameter")
 	_check(scene.post.contrast == 2.0, "Clamp upper bound")
 	_check(not handler.set_parameter("visual.filters", "contrast", NAN), "Reject non-finite value")
@@ -104,12 +104,13 @@ func _run() -> void:
 	handler.register_context("test.target", "Alvo de teste", null, target, [
 		{"property": "visible", "label": "Visível", "description": "Teste de ciclo de vida."}])
 	handler.contexts["test.target"].fields[0].pinned = true
-	_check(handler.contexts.size() == 3, "Register unrelated target")
+	_check(handler.contexts.size() == 4, "Register unrelated target")
 	target.queue_free()
 	await process_frame
 	_check(not handler.contexts.has("test.target"), "Remove menu and watches on target exit")
 	if DisplayServer.get_name() != "headless":
 		await _verify_presentation(handler)
+		await _verify_utilities(handler)
 	if "--da-capture" in OS.get_cmdline_user_args():
 		for dimensions in [Vector2i(1280, 720), Vector2i(800, 600), Vector2i(640, 360)]:
 			root.size = dimensions
@@ -192,3 +193,40 @@ func _verify_presentation(handler: DevAssistance) -> void:
 	_check(not handler._glass.visible, "Benchmark suspension hides glass too")
 	handler.suspended = false
 	handler._layout_reset = true
+
+func _verify_utilities(handler: DevAssistance) -> void:
+	for ctx: Dictionary in handler.contexts.values():
+		ctx.open[0] = false
+	var browser: Dictionary = handler._utilities.scene_browser
+	browser.open[0] = true
+	handler._query[0] = "Character"
+	for i in 8:
+		await process_frame
+	var result_pos: Vector2 = browser.position + Vector2(70, 127)
+	await _mouse(result_pos)
+	await _mouse(result_pos, 1)
+	await _mouse(result_pos, 0)
+	_check(handler.contexts["visual.player"].open[0] and not browser.open[0], "Browser searches target name and opens its Props")
+	handler.contexts["visual.player"].open[0] = false
+	browser.open[0] = false
+	var field: Dictionary = handler.contexts["visual.player"].fields[0]
+	field.pinned = true
+	handler.contexts["visual.filters"].fields[0].pinned = false
+	var wheel: Dictionary = handler._utilities.screen_space
+	wheel.open[0] = true
+	for i in 5:
+		await process_frame
+	var first: Vector2 = wheel.position + Vector2(170, 108)
+	await _mouse(first)
+	await _mouse(first, 1)
+	await _mouse(first, 0)
+	_check(not field.shown and field.pinned, "Radial toggle hides a 3D watch without removing its membership")
+	wheel.open[0] = false
+	handler._utilities.profiler.open[0] = true
+	var orbit: Dictionary = handler.contexts["visual.experiment"].fields.back()
+	orbit.pinned = true
+	var before := Time.get_ticks_msec()
+	current_scene.moving = not current_scene.moving
+	await process_frame
+	_check(orbit.fired_at >= before and orbit.fade_seconds > 0, "Orbit signal restarts its timed watch")
+	handler._utilities.profiler.open[0] = false
