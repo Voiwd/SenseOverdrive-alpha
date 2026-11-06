@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://daiwmw2r7yoho" path="res://characters/proto_character/character.tscn" id="3_jn645"]
 [ext_resource type="PackedScene" uid="uid://b3qb7tnepib61" path="res://3d/meshes/machine.blend" id="4_qvc4m"]
 [ext_resource type="PackedScene" path="res://effects/world_post_process.tscn" id="5_post"]
+[ext_resource type="PackedScene" path="res://gameplay/component/mission_component.tscn" id="6_core"]
 
 [sub_resource type="Environment" id="Environment_pbjoa"]
 background_energy_multiplier = 0.33
@@ -52,6 +53,10 @@ shape = SubResource("BoxShape3D_5omsy")
 
 [node name="Character" parent="." unique_id=2004958085 instance=ExtResource("3_jn645")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.660517, 0.5, 0)
+
+[node name="Component" parent="." instance=ExtResource("6_core")]
+position = Vector3(-2.05, 0.83, -1.05)
+solo_player_path = NodePath("../Character")
 
 [node name="machine" parent="." unique_id=2095915353 instance=ExtResource("4_qvc4m")]
 transform = Transform3D(0.055, 0, 0, 0, 0.055, 0, 0, 0, 0.055, 0, 1.6449215, 0)

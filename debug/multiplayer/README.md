@@ -13,6 +13,16 @@
 
 A janela aberta automaticamente é um processo independente. Feche essa janela ao terminar; parar a execução no editor pode encerrar apenas a primeira. Ao fechar ou desconectar o host, o cliente volta ao menu.
 
+## Núcleo de missão
+
+**F5** também permite experimentar o núcleo sozinho na Sala. Ele pulsa ao lado do personagem. **E** pega ou larga. Caminhe com ele e aperte **E** de novo para deixá-lo à sua frente.
+
+Com **F6** na arena multiplayer, o núcleo começa ao alcance dos dois primeiros jogadores. Tentem pegá-lo juntos e depois passá-lo de um para o outro. Aproxime-se de onde o portador o largou. **V** consulta a disponibilidade de disparo manual. Carregar ocupa as mãos. A arma e a morte são sistemas futuros.
+
+No host, **G** força a soltura e **R** repõe o núcleo no centro. Desconectar o portador também libera o núcleo. Para conferir entrada tardia, pegue o núcleo no host antes de conectar o cliente.
+
+No Inspector remoto do nó `Component`, ajuste `pickup_range` no host para mudar o alcance aceito, `drop_distance` para mudar a distância de soltura e `carry_offset` para testar a posição visual local. Aplique os valores desejados na cena para usá-los em todas as instâncias.
+
 ## Duas instâncias pelo editor
 
 Como alternativa ao botão, configure **Debug > Customize Run Instances…** para executar **2 instâncias** (o nome pode aparecer traduzido). Execute esta cena com **F6**. Em uma janela, clique **Criar sala**; na outra, mantenha `127.0.0.1` e clique **Entrar**. Use a mesma porta nas duas.
@@ -44,7 +54,6 @@ O painel pode mostrar mais de um IP por causa de VPNs e adaptadores virtuais. Us
 - **MultiplayerSynchronizer** transmite posição, velocidade e direção horizontal da câmera a 30 Hz. A inclinação e a marcha são calculadas localmente a partir desses valores.
 - Cada dono simula seu próprio movimento. Esta é uma base para testar cooperação local; ainda não tem validação de movimento pelo servidor, predição, interpolação de rede, migração de host ou conexão pela internet/Steam.
 - Os jogadores colidem com o chão e atravessam uns aos outros para evitar disputas entre simulações nesta etapa.
-- A cena principal, o controlador original e os autoloads do jogo não foram alterados.
 
 Os parâmetros `default_port` e `connection_timeout` ficam no Inspector da raiz do debug. A porta também pode ser ajustada pelo painel antes de criar/entrar na sala.
 

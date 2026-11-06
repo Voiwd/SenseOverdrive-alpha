@@ -1,0 +1,118 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://gameplay/component/mission_component.gd" id="1"]
+[ext_resource type="AudioStream" path="res://gameplay/component/core_pulse.wav" id="2"]
+
+[sub_resource type="StandardMaterial3D" id="Gunmetal"]
+albedo_color = Color(0.16, 0.20, 0.21, 1)
+metallic = 0.75
+roughness = 0.34
+emission_enabled = true
+emission = Color(0.13, 0.15, 0.16, 1)
+emission_energy_multiplier = 0.32
+
+[sub_resource type="StandardMaterial3D" id="Ivory"]
+albedo_color = Color(0.62, 0.61, 0.48, 1)
+metallic = 0.45
+emission_enabled = true
+emission = Color(0.22, 0.20, 0.15, 1)
+emission_energy_multiplier = 0.3
+
+[sub_resource type="Shader" id="MembraneShader"]
+code = "shader_type spatial;
+instance uniform float beat = 0.0;
+void fragment() {
+	float ribs = 0.5 + 0.5 * cos(UV.y * 50.265);
+	ALBEDO = mix(vec3(0.23, 0.015, 0.008), vec3(0.75, 0.12, 0.025), ribs);
+	EMISSION = ALBEDO * (0.7 + 2.4 * beat);
+	ROUGHNESS = 0.34;
+}"
+
+[sub_resource type="ShaderMaterial" id="Membrane"]
+shader = SubResource("MembraneShader")
+
+[sub_resource type="SphereMesh" id="Core"]
+material = SubResource("Membrane")
+radius = 0.19
+height = 0.51
+
+[sub_resource type="CylinderMesh" id="Cap"]
+material = SubResource("Gunmetal")
+top_radius = 0.258
+bottom_radius = 0.25
+height = 0.095
+radial_segments = 12
+
+[sub_resource type="TorusMesh" id="Collar"]
+material = SubResource("Ivory")
+inner_radius = 0.205
+outer_radius = 0.243
+rings = 24
+ring_segments = 6
+
+[sub_resource type="BoxMesh" id="Strut"]
+material = SubResource("Ivory")
+size = Vector3(0.045, 0.46, 0.053)
+
+[node name="MissionComponent" type="Node3D"]
+script = ExtResource("1")
+
+[node name="Membrane" type="MeshInstance3D" parent="."]
+mesh = SubResource("Core")
+
+[node name="UpperCap" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.276, 0)
+mesh = SubResource("Cap")
+
+[node name="LowerCap" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.276, 0)
+mesh = SubResource("Cap")
+
+[node name="UpperCollar" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.206, 0)
+mesh = SubResource("Collar")
+
+[node name="LowerCollar" type="MeshInstance3D" parent="."]
+position = Vector3(0, -0.206, 0)
+mesh = SubResource("Collar")
+
+[node name="Rail1" type="MeshInstance3D" parent="."]
+position = Vector3(0.1054, 0, 0.1758)
+rotation = Vector3(0, 0.5400, 0)
+mesh = SubResource("Strut")
+
+[node name="Rail2" type="MeshInstance3D" parent="."]
+position = Vector3(0.1758, 0, -0.1054)
+rotation = Vector3(0, 2.1108, 0)
+mesh = SubResource("Strut")
+
+[node name="Rail3" type="MeshInstance3D" parent="."]
+position = Vector3(-0.1054, 0, -0.1758)
+rotation = Vector3(0, 3.6816, 0)
+mesh = SubResource("Strut")
+
+[node name="Rail4" type="MeshInstance3D" parent="."]
+position = Vector3(-0.1758, 0, 0.1054)
+rotation = Vector3(0, 5.2524, 0)
+mesh = SubResource("Strut")
+
+[node name="Pulse" type="AudioStreamPlayer3D" parent="."]
+stream = ExtResource("2")
+volume_db = -12.0
+unit_size = 2.0
+max_distance = 12.0
+
+[node name="CoreLight" type="OmniLight3D" parent="."]
+light_color = Color(1, 0.32, 0.12, 1)
+light_energy = 0.78
+omni_range = 1.65
+omni_attenuation = 1.2
+
+[node name="Prompt" type="Label3D" parent="."]
+visible = false
+no_depth_test = true
+position = Vector3(0, 0.52, 0)
+billboard = 1
+font_size = 30
+pixel_size = 0.003
+outline_size = 6

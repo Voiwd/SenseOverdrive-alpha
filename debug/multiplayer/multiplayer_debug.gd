@@ -2,6 +2,7 @@ extends Node3D
 ## Isolated ENet/LAN sandbox. Nothing here is an autoload or used by the main scene.
 
 const PLAYER := preload("res://debug/multiplayer/multiplayer_player.tscn")
+const MissionComponent := preload("res://gameplay/component/mission_component.gd")
 const SCENE_PATH := "res://debug/multiplayer/multiplayer_debug.tscn"
 const MAX_PLAYERS := 4
 
@@ -11,7 +12,10 @@ const MAX_PLAYERS := 4
 @onready var players: Node3D = $Players
 @onready var spawner: MultiplayerSpawner = $Spawner
 @onready var overview: Camera3D = $Overview
+@onready var component: MissionComponent = $Component
 
+var component_hint: Label
+var lobby_rows: Array[Control] = []
 var address_field: LineEdit
 var port_field: SpinBox
 var status_label: Label
@@ -62,8 +66,38 @@ func start_host() -> bool:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if event.is_pressed() and not event.is_echo() and event.keycode == KEY_F8:
-		$WorldPostProcess.enabled = not $WorldPostProcess.enabled
+	if not event.is_pressed() or event.is_echo():
+		return
+	match event.keycode:
+		KEY_F8:
+			$WorldPostProcess.enabled = not $WorldPostProcess.enabled
+		KEY_E:
+			if connected:
+				component.interact()
+		KEY_G:
+			if connected and multiplayer.is_server():
+				component.force_drop(component.carrier_id)
+		KEY_R:
+			if connected and multiplayer.is_server():
+				component.reset_component()
+		KEY_V:
+			if connected:
+				var available := component.can_use_manual_weapon(multiplayer.get_unique_id())
+				_set_status("Teste de disparo: liberado." if available else "Teste de disparo: bloqueado pelas mãos ocupadas.")
+
+
+func _process(_delta: float) -> void:
+	if not connected:
+		return
+	var peer := multiplayer.get_unique_id()
+	if component.carrier_id == peer:
+		component_hint.text = "MÃOS OCUPADAS    ·    [E]  Largar núcleo"
+	elif component.carrier_id != 0:
+		component_hint.text = "Núcleo em transporte pelo outro jogador"
+	elif component.can_pick_up(peer):
+		component_hint.text = "[E]  Pegar núcleo"
+	else:
+		component_hint.text = "Aproxime-se do núcleo pulsante"
 
 
 func join_host() -> void:
@@ -87,6 +121,7 @@ func disconnect_session(message := "Desconectado. Você pode criar ou entrar em 
 	connected = false
 	multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+	component.reset_component()
 	for player in players.get_children():
 		players.remove_child(player)
 		player.queue_free()
@@ -135,10 +170,12 @@ func _spawn_player(data: Dictionary) -> Node:
 func _peer_connected(peer_id: int) -> void:
 	if multiplayer.is_server():
 		_add_player(peer_id)
+		component.sync_to(peer_id)
 
 
 func _peer_disconnected(peer_id: int) -> void:
 	if multiplayer.is_server():
+		component.force_drop(peer_id)
 		var player := players.get_node_or_null(str(peer_id))
 		if player != null:
 			player.queue_free()
@@ -170,6 +207,9 @@ func _reset_local_player() -> void:
 
 
 func _set_active(active: bool) -> void:
+	for row in lobby_rows:
+		row.visible = not active
+	component_hint.visible = active
 	host_button.disabled = active
 	join_button.disabled = active
 	quick_button.disabled = active
@@ -212,9 +252,10 @@ func _build_ui() -> void:
 	column.add_theme_constant_override("separation", 8)
 	margin.add_child(column)
 	_label(column, "MULTIPLAYER LOCAL / LAN · DEBUG", 20)
-	_label(column, "Mesmo PC: Testar 2 janelas. Em rede: Criar sala + Entrar pelo IP do host.")
+	lobby_rows.append(_label(column, "Mesmo PC: Testar 2 janelas. Em rede: Criar sala + Entrar pelo IP do host."))
 	var row := HBoxContainer.new()
 	column.add_child(row)
+	lobby_rows.append(row)
 	_label(row, "IP:")
 	address_field = LineEdit.new()
 	address_field.text = "127.0.0.1"
@@ -237,10 +278,17 @@ func _build_ui() -> void:
 	status_label.custom_minimum_size.x = 690
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	peers_label = _label(column, "Jogadores: 0/4")
-	_label(column, "Seu IP na rede: " + _lan_addresses())
-	_label(column, "Clique na arena: capturar mouse · Esc: liberar · WASD/setas: mover · Shift: correr")
-	_label(column, "Alt+Tab: trocar janela · Repor posição: voltar ao ponto inicial")
-	_label(column, "F8: comparar filtro local ligado/desligado · Ajustes: Inspector remoto > WorldPostProcess")
+	lobby_rows.append(_label(column, "Seu IP na rede: " + _lan_addresses()))
+	_label(column, "Clique na arena · WASD/setas: mover · Shift: correr · Esc: liberar · F8: filtro")
+	_label(column, "V: testar mãos · Host: G força soltura · R repõe o núcleo")
+	component_hint = Label.new()
+	component_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	component_hint.add_theme_font_size_override("font_size", 21)
+	component_hint.add_theme_constant_override("outline_size", 6)
+	component_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(component_hint)
+	component_hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	component_hint.offset_top = -58
 	_set_active(false)
 
 
